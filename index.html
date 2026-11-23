@@ -482,6 +482,24 @@ body.zen .timer { visibility: hidden; }
 .play-main .toolbar, .play-main .banner { width: 0; min-width: 100%; }
 .play-main { min-width: min(480px, calc(100vw - 32px)); }
 
+/* ---------- Serpent ---------- */
+.sheet[data-sheet="snake"] { min-height: 100%; }
+.snake-zone { position: absolute; outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 0; background: color-mix(in srgb, var(--accent) 4%, transparent); touch-action: none; user-select: none; -webkit-user-select: none; cursor: cell; }
+.sn-cell { position: absolute; width: var(--cw); height: var(--rh); font-family: var(--cell-font); font-size: 13px; line-height: var(--rh); text-align: right; padding-right: 5px; transition: left .06s linear, top .06s linear; }
+body.noanim .sn-cell { transition: none; }
+.sn-body { background: color-mix(in srgb, #1e7145 calc((1 - var(--t)) * 100%), #a9d08e); color: #fff; border: 1px solid rgba(255,255,255,.35); font-weight: 600; }
+.sn-head { background: color-mix(in srgb, var(--accent) 18%, var(--bg)); border: 2px solid var(--accent); z-index: 2; }
+.sn-head::after { content: ""; position: absolute; right: -4px; bottom: -4px; width: 6px; height: 6px; background: var(--accent); border: 1px solid var(--bg); }
+.sn-food { color: var(--text); font-weight: 700; background: #ffeb9c; border: 1px solid #e5cf73; color: #6b5500; animation: pop .25s ease; }
+.sn-food.gold { background: linear-gradient(135deg, #ffd54f, #ffb300); color: #4a3200; border-color: #c79100; }
+.sn-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); padding: 14px 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; min-width: 220px; z-index: 5; font-size: 13px; }
+.sn-msg b { font-size: 16px; }
+.sn-err { font-family: var(--cell-font); font-size: 26px; font-weight: 700; color: var(--danger); }
+.sn-rec { color: var(--ok); font-weight: 700; }
+.snake-side { position: absolute; display: flex; flex-direction: column; gap: 14px; width: min(300px, calc(100vw - 80px)); }
+.sn-pad { display: grid; grid-template-columns: repeat(3, 48px); grid-auto-rows: 40px; gap: 4px; justify-content: start; }
+.sn-pad .btn { justify-content: center; font-size: 15px; padding: 0; }
+
 </style>
 </head>
 <body>
@@ -734,13 +752,78 @@ body.zen .timer { visibility: hidden; }
       if (!name) return false;
       const l = players.list();
       if (l.some((p) => p.toLowerCase() === name.toLowerCase())) return false;
-      l.push(name); store.set('players', l); return true;
+      l.push(name); store.set('players', l); sync.pushPlayer(name); return true;
     },
     remove(name) { store.set('players', players.list().filter((p) => p !== name)); },
     current() { return store.get('player', null); },
     setCurrent(n) { store.set('player', n); },
     color(name) { const i = Math.abs(hashStr(name || '?')) % PLAYER_COLORS.length; return PLAYER_COLORS[i]; },
     initials(name) { return (name || '?').slice(0, 2).toUpperCase(); }
+  };
+
+
+  /* ---------- Synchronisation partagée (base du lien jouable claude.ai) ----------
+     Sur GitHub Pages (pas de base), tout reste local + partage par lien. */
+  const enc = (s) => encodeURIComponent(String(s)).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16)).replace(/%/g, '~').slice(0, 190) || 'x';
+  const snakeScores = {
+    all() { return store.get('snake', {}); },
+    submit(p, score) {
+      const m = snakeScores.all();
+      if (!p || score <= (m[p] || 0)) return false;
+      m[p] = score; store.set('snake', m); sync.pushSnake(p, score); return true;
+    },
+    mergeRemote(list) {
+      const m = snakeScores.all(); let ch = false;
+      for (const x of list) if (x && x.p && +x.best > (m[x.p] || 0)) { m[String(x.p).slice(0, 18)] = +x.best; ch = true; }
+      if (ch) store.set('snake', m); return ch;
+    }
+  };
+  const sync = {
+    db: null, state: 'local', fns: [],
+    onChange(fn) { sync.fns.push(fn); },
+    emit() { sync.fns.forEach((f) => { try { f(sync.state); } catch (e) { console.error(e); } }); },
+    async write(path, data) {
+      if (!sync.db) return;
+      try { await sync.db.doc(path).set(data); }
+      catch (e) {
+        if (e && e.code === 'unavailable') { await new Promise((r) => setTimeout(r, 600 + Math.random() * 800)); try { await sync.db.doc(path).set(data); return; } catch (e2) { e = e2; } }
+        if (e && e.code === 'invalid_argument') { sync.state = 'readonly'; sync.emit(); }
+        console.warn('sync', e);
+      }
+    },
+    pushResult(r) { const c = Object.assign({}, r); for (const k in c) if (c[k] === undefined) delete c[k]; return sync.write('results/' + enc(r.id), c); },
+    pushPlayer(name) { return sync.write('players/' + enc(name), { name }); },
+    pushSnake(p, best) { return sync.write('snake/' + enc(p), { p, best }); },
+    async init() {
+      if (!window.claude || typeof window.claude.use !== 'function') return;
+      let db = null; try { db = await window.claude.use('db'); } catch (e) {}
+      if (!db) return;
+      sync.db = db; sync.state = 'connecting'; sync.emit();
+      const remoteIds = new Set(); let uploaded = false;
+      const timer = setTimeout(() => { if (sync.state === 'connecting') { sync.state = 'offline'; sync.emit(); } }, 10000);
+      db.collection('results').onSnapshot((snap) => {
+        const list = snap.docs.map((d) => d.data()).filter(Boolean);
+        list.forEach((r) => remoteIds.add(r.id));
+        const n = results.merge(list);
+        if (!snap.metadata.fromCache) {
+          clearTimeout(timer);
+          if (sync.state !== 'readonly') sync.state = 'online';
+          if (!uploaded) {
+            uploaded = true;
+            (async () => { for (const r of results.all()) if (!remoteIds.has(r.id)) await sync.pushResult(r); })();
+            (async () => { for (const p of players.list()) await sync.pushPlayer(p); })();
+            (async () => { const m = snakeScores.all(); for (const p in m) await sync.pushSnake(p, m[p]); })();
+          }
+        }
+        if (n || !snap.metadata.fromCache) sync.emit();
+      }, (e) => { clearTimeout(timer); sync.state = 'offline'; sync.emit(); });
+      db.collection('players').onSnapshot((snap) => {
+        let ch = false;
+        snap.docs.forEach((d) => { const v = d.data(); if (v && v.name) { const l = players.list(); if (!l.some((p) => p.toLowerCase() === String(v.name).toLowerCase())) { l.push(String(v.name).slice(0, 18)); store.set('players', l); ch = true; } } });
+        if (ch) sync.emit();
+      }, () => {});
+      db.collection('snake').onSnapshot((snap) => { if (snakeScores.mergeRemote(snap.docs.map((d) => d.data()))) sync.emit(); }, () => {});
+    }
   };
 
   /* ---------- Résultats ----------
@@ -753,7 +836,7 @@ body.zen .timer { visibility: hidden; }
       r.id = r.id || (r.p + '|' + r.g + '|' + r.d + (r.d === 'libre' ? '|' + Date.now().toString(36) : ''));
       if (l.some((x) => x.id === r.id)) return false; // premier résultat du jour = celui qui compte
       r.ts = r.ts || Date.now();
-      l.push(r); results.save(l); return true;
+      l.push(r); results.save(l); sync.pushResult(r); return true;
     },
     daily(p, g, d) { return results.all().find((r) => r.p === p && r.g === g && r.d === d) || null; },
     forDay(d) { return results.all().filter((r) => r.d === d); },
@@ -820,7 +903,7 @@ body.zen .timer { visibility: hidden; }
     }
   };
 
-  window.XL = { hashStr, makeRng, todayKey, prettyDate, shortDate, addDays, fmtTime, store, players, results, statsFor, streak, titleFor, share };
+  window.XL = { sync, snakeScores, hashStr, makeRng, todayKey, prettyDate, shortDate, addDays, fmtTime, store, players, results, statsFor, streak, titleFor, share };
 })();
 
 </script>
@@ -1690,7 +1773,7 @@ body.zen .timer { visibility: hidden; }
   const savePrefs = () => XL.store.set('prefs', prefs);
 
   /* ---------- État ---------- */
-  const SHEETS = [{ id: 'home', name: 'Accueil', icon: '⌂' }, ...GAMES.map((g) => ({ id: g.id, name: g.name, icon: g.icon, game: g })), { id: 'rank', name: 'Classement', icon: '🏆' }];
+  const SHEETS = [{ id: 'home', name: 'Accueil', icon: '⌂' }, ...GAMES.map((g) => ({ id: g.id, name: g.name, icon: g.icon, game: g })), { id: 'snake', name: 'Serpent', icon: '🐍' }, { id: 'rank', name: 'Classement', icon: '🏆' }];
   let active = -1;
   let player = XL.players.current();
   const sessions = {}; // gameId -> { mode, seed, inst, el, elapsed, hints, done, result }
@@ -1947,6 +2030,7 @@ body.zen .timer { visibility: hidden; }
     if (!el) { el = h('div', { class: 'sheet', 'data-sheet': s.id }); canvas.append(el); sheetEls[s.id] = el; }
     if (s.id === 'home') renderHome(el);
     else if (s.id === 'rank') renderRank(el);
+    else if (s.id === 'snake') renderSnake(el);
     else { if (!sessions[s.id]) startGame(s.id, 'daily', true); else renderSide(s.id); }
     el.classList.remove('enter-l', 'enter-r');
     if (prefs.anim && prev >= 0 && prev !== i) { void el.offsetWidth; el.classList.add(prev < i ? 'enter-r' : 'enter-l'); }
@@ -1954,7 +2038,8 @@ body.zen .timer { visibility: hidden; }
     scroll.scrollTo({ left: 0, top: 0 });
     sizeCanvas();
     buildTabs(); renderUserCells(); selbox.classList.add('hidden');
-    fxBase = s.game ? `=${s.game.fn}("${XL.todayKey()}")` : s.id === 'home' ? '=BIENVENUE(JOUEUR())' : '=CLASSEMENT(Joueurs; "détente")';
+    fxBase = s.game ? `=${s.game.fn}("${XL.todayKey()}")` : s.id === 'home' ? '=BIENVENUE(JOUEUR())' : s.id === 'snake' ? '=SERPENT(Flèches; "sans pression")' : '=CLASSEMENT(Joueurs; "détente")';
+    if (prev >= 0 && SHEETS[prev] && SHEETS[prev].id === 'snake' && prev !== i) snakePause(true);
     setFx(fxBase, true);
     if (prev >= 0 && prev !== i) { sound('nav'); sweep(); calcMode(); }
     location.hash !== '#' + s.id && history.replaceState(null, '', '#' + s.id);
@@ -2068,6 +2153,11 @@ body.zen .timer { visibility: hidden; }
     const s = SHEETS[active], agg = $('#agg'); agg.innerHTML = '';
     const day = XL.todayKey();
     let list;
+    if (s && s.id === 'snake' && snake.st) {
+      const v = snake.st.vals.slice(1);
+      agg.append(h('span', null, 'Somme : ' + snake.st.score), h('span', null, 'Nb : ' + snake.st.body.length), h('span', null, 'Moyenne : ' + (v.length ? (snake.st.score / v.length).toFixed(1).replace('.', ',') : '0')));
+      updateTimer(); return;
+    }
     if (s && s.game) list = XL.results.forDay(day).filter((r) => r.g === s.id);
     else list = XL.results.forDay(day).filter((r) => r.p === player);
     if (list.length) {
@@ -2122,7 +2212,9 @@ body.zen .timer { visibility: hidden; }
     }
     return -1;
   }
-  function flashSaved() { const s = $('#saved'); s.textContent = '· Enregistrement…'; setTimeout(() => (s.textContent = '· Enregistré'), 700); }
+  const SYNC_LABEL = { local: '· Enregistré sur cet appareil', connecting: '· Connexion…', online: '· Synchronisé ☁', offline: '· Hors ligne (local)', readonly: '· Lecture seule ☁' };
+  function syncLabel() { return SYNC_LABEL[XL.sync.state] || '· Enregistré'; }
+  function flashSaved() { const s = $('#saved'); s.textContent = '· Enregistrement…'; setTimeout(() => (s.textContent = syncLabel()), 700); }
 
   /* ---------- Confettis en forme de cellules ---------- */
   function confetti() {
@@ -2139,6 +2231,162 @@ body.zen .timer { visibility: hidden; }
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.hh / 2, p.w, p.hh); ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.strokeRect(-p.w / 2, -p.hh / 2, p.w, p.hh); ctx.restore(); }
       if (t - t0 < 2600) requestAnimationFrame(frame); else cv.remove();
     })(t0);
+  }
+
+
+  /* =========================================================
+     Serpent — la sélection qui grandit (hors classement)
+     ========================================================= */
+  const snake = { st: null, zone: null, side: null, timer: null };
+  const SN_C0 = 1, SN_R0 = 5; // la zone démarre en B6
+  function renderSnake(el) {
+    if (!el.dataset.built) {
+      el.dataset.built = '1'; el.innerHTML = '';
+      el.append(
+        h('div', { class: 's-title' }, h('div', { class: 'gicon', style: { background: '#107c41' } }, '🐍'), h('div', { class: 'big' }, h('b', null, 'Serpent'), ' ', h('span', { style: { fontSize: '15px', color: 'var(--muted)' } }, '=SERPENT()')), h('span', { class: 'tag' }, 'pause détente · hors classement')),
+        h('div', { class: 's-sub' }, 'Dirige la sélection avec les flèches (ou ZQSD), mange les valeurs. Évite le #REF! et les références circulaires.'));
+      snake.zone = h('div', { class: 'snake-zone' });
+      snake.side = h('div', { class: 'snake-side' });
+      el.append(snake.zone, snake.side);
+      let sx = 0, sy = 0;
+      snake.zone.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; });
+      snake.zone.addEventListener('pointerup', (e) => {
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) { if (!snake.st.running) snakeStart(); return; }
+        snakeTurn(Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) });
+      });
+      snakeLayout(); snakeReset();
+    }
+    snakeSide(); snakeDraw();
+  }
+  function snakeLayout() {
+    const cw = CW(), rh = RH(), W = scroll.clientWidth, H = scroll.clientHeight;
+    const wide = W > 900;
+    const cols = Math.max(8, Math.min(16, Math.floor(W / cw) - SN_C0 - (wide ? 7 : 1)));
+    const rows = Math.max(10, Math.min(20, Math.floor(H / rh) - SN_R0 - 2));
+    Object.assign(snake.zone.style, { left: SN_C0 * cw + 'px', top: SN_R0 * rh + 'px', width: cols * cw + 'px', height: rows * rh + 'px' });
+    Object.assign(snake.side.style, wide ? { left: (SN_C0 + cols + 1) * cw + 'px', top: SN_R0 * rh + 'px' } : { left: SN_C0 * cw + 'px', top: (SN_R0 + rows + 1) * rh + 'px' });
+    return { cols, rows };
+  }
+  function snakeReset() {
+    clearTimeout(snake.timer);
+    const { cols, rows } = snakeLayout();
+    const y = Math.floor(rows / 2), x = Math.floor(cols / 3);
+    snake.st = { cols, rows, body: [{ x, y }, { x: x - 1, y }, { x: x - 2, y }], vals: [0, 0, 0], dir: { x: 1, y: 0 }, queue: [], score: 0, running: false, over: null, speed: 170, eaten: 0, msg: 'start' };
+    snakeFood(); snakeDraw(); snakeSide(); updateStatus();
+  }
+  function snakeFood() {
+    const S = snake.st, free = [];
+    for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) if (!S.body.some((b) => b.x === x && b.y === y)) free.push({ x, y });
+    const f = free[Math.floor(Math.random() * free.length)];
+    const r = Math.random();
+    S.food = Object.assign(f, r < 0.12 ? { v: 10, gold: true } : { v: 1 + Math.floor(Math.random() * 9) });
+  }
+  const ref2 = (x, y) => colName(SN_C0 + x) + (SN_R0 + y + 1);
+  function snakeDraw() {
+    const S = snake.st, z = snake.zone; if (!S || !z) return;
+    const cw = CW(), rh = RH(); z.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    const n = S.body.length;
+    S.body.forEach((b, i) => {
+      const t = n > 1 ? i / (n - 1) : 0;
+      const el = h('div', { class: 'sn-cell ' + (i === 0 ? 'sn-head' : 'sn-body'), style: { left: b.x * cw + 'px', top: b.y * rh + 'px', '--t': t } }, i && S.vals[i] ? String(S.vals[i]) : '');
+      frag.append(el);
+    });
+    if (S.food) frag.append(h('div', { class: 'sn-cell sn-food' + (S.food.gold ? ' gold' : ''), style: { left: S.food.x * cw + 'px', top: S.food.y * rh + 'px' } }, S.food.gold ? '★10' : String(S.food.v)));
+    if (S.msg) {
+      const box = h('div', { class: 'sn-msg' });
+      if (S.msg === 'start') box.append(h('b', null, 'Prêt à calculer ?'), h('span', null, 'Espace, Entrée ou un tap pour démarrer.'), h('button', { class: 'btn primary', onclick: snakeStart }, '▶ Jouer'));
+      else if (S.msg === 'pause') box.append(h('b', null, '⏸ Pause'), h('span', null, 'Espace pour reprendre.'), h('button', { class: 'btn primary', onclick: snakeStart }, '▶ Reprendre'));
+      else {
+        const circ = S.over === 'circ';
+        box.classList.add('err');
+        box.append(h('div', { class: 'sn-err' }, circ ? '⚠ Référence circulaire' : '#REF!'),
+          h('span', null, circ ? 'La sélection fait référence à sa propre cellule.' : 'La sélection est sortie de la plage.'),
+          h('span', null, `=SOMME(Serpent) → `, h('b', null, String(S.score)), ` · longueur ${S.body.length}`),
+          S.record ? h('span', { class: 'sn-rec' }, '🏅 Nouveau record perso !') : '',
+          h('button', { class: 'btn primary', onclick: () => { snakeReset(); snakeStart(); } }, '↺ Rejouer'));
+      }
+      frag.append(box);
+    }
+    z.append(frag);
+    const hd = S.body[0];
+    if (SHEETS[active] && SHEETS[active].id === 'snake') {
+      namebox.textContent = ref2(hd.x, hd.y);
+      setFx(`=SOMME(${ref2(0, 0)}:${ref2(S.cols - 1, S.rows - 1)}) → ${S.score}`);
+    }
+  }
+  function snakeSide() {
+    const sd = snake.side; if (!sd) return;
+    const best = XL.snakeScores.all();
+    const rows = Object.keys(best).map((p) => ({ p, b: best[p] })).sort((a, b) => b.b - a.b).slice(0, 8);
+    sd.innerHTML = '';
+    const pad = h('div', { class: 'sn-pad' },
+      h('span'), h('button', { class: 'btn', onclick: () => snakeTurn({ x: 0, y: -1 }), 'aria-label': 'Haut' }, '▲'), h('span'),
+      h('button', { class: 'btn', onclick: () => snakeTurn({ x: -1, y: 0 }), 'aria-label': 'Gauche' }, '◀'),
+      h('button', { class: 'btn', onclick: () => (snake.st.running ? snakePause() : snakeStart()), 'aria-label': 'Pause' }, '⏯'),
+      h('button', { class: 'btn', onclick: () => snakeTurn({ x: 1, y: 0 }), 'aria-label': 'Droite' }, '▶'),
+      h('span'), h('button', { class: 'btn', onclick: () => snakeTurn({ x: 0, y: 1 }), 'aria-label': 'Bas' }, '▼'), h('span'));
+    sd.append(
+      h('div', { class: 'mini' }, h('h5', null, 'Meilleures sommes'),
+        h('table', { class: 'xtable compact' }, h('thead', null, h('tr', null, h('th', null, 'Joueur'), h('th', { class: 'num' }, 'Record'))),
+          h('tbody', null, ...(rows.length ? rows.map((r, k) => h('tr', null, h('td', null, h('span', { class: 'who-mini' }, h('span', { class: 'dot', style: { background: XL.players.color(r.p) } }, XL.players.initials(r.p)), (['🥇 ', '🥈 ', '🥉 '][k] || '') + r.p)), h('td', { class: 'num' }, String(r.b))))
+            : [h('tr', null, h('td', { colspan: 2, style: { color: 'var(--soft)' } }, 'Aucun record encore.'))])))),
+      pad,
+      h('div', { class: 'note' }, h('div', { class: 'by' }, 'Note · Serpent'), h('ul', null,
+        h('li', null, 'Chaque valeur mangée s\'ajoute à la somme et allonge la sélection.'),
+        h('li', null, '★10 : une cellule dorée qui vaut 10.'),
+        h('li', null, 'Pas de chrono, pas de classement du jour : juste pour se vider la tête.'))));
+  }
+  function snakeTurn(d) {
+    const S = snake.st; if (!S || S.over) return;
+    const last = S.queue.length ? S.queue[S.queue.length - 1] : S.dir;
+    if ((d.x === -last.x && d.y === -last.y) || (d.x === last.x && d.y === last.y)) { if (!S.running) snakeStart(); return; }
+    if (S.queue.length < 3) S.queue.push(d);
+    if (!S.running) snakeStart();
+  }
+  function snakeStart() {
+    const S = snake.st; if (!S) return;
+    if (S.over) { snakeReset(); return snakeStart(); }
+    if (S.running) return;
+    S.running = true; S.msg = null; snakeDraw();
+    clearTimeout(snake.timer); snake.timer = setTimeout(snakeStep, S.speed);
+  }
+  function snakePause(silent) {
+    const S = snake.st; if (!S || !S.running) return;
+    S.running = false; S.msg = 'pause'; clearTimeout(snake.timer); snakeDraw();
+  }
+  function snakeStep() {
+    const S = snake.st; if (!S || !S.running) return;
+    if (!SHEETS[active] || SHEETS[active].id !== 'snake' || document.hidden || $('.overlay')) { snakePause(true); return; }
+    if (S.queue.length) S.dir = S.queue.shift();
+    const hd = S.body[0], nx = { x: hd.x + S.dir.x, y: hd.y + S.dir.y };
+    const eat = S.food && nx.x === S.food.x && nx.y === S.food.y;
+    const hitWall = nx.x < 0 || nx.y < 0 || nx.x >= S.cols || nx.y >= S.rows;
+    const bodyCheck = eat ? S.body : S.body.slice(0, -1);
+    if (hitWall || bodyCheck.some((b) => b.x === nx.x && b.y === nx.y)) return snakeOver(hitWall ? 'ref' : 'circ');
+    S.body.unshift(nx);
+    if (eat) {
+      S.vals.splice(1, 0, S.food.v); S.score += S.food.v; S.eaten++;
+      S.speed = Math.max(75, S.speed - 4); sound(S.food.gold ? 'win' : 'place'); snakeFood();
+    } else S.body.pop();
+    snakeDraw(); updateStatus();
+    snake.timer = setTimeout(snakeStep, S.speed);
+  }
+  function snakeOver(kind) {
+    const S = snake.st; S.running = false; S.over = kind; S.msg = 'over'; clearTimeout(snake.timer);
+    S.record = XL.snakeScores.submit(player, S.score);
+    sound('erase'); snakeDraw(); snakeSide();
+    if (S.record && S.score >= 30) confetti();
+  }
+  function snakeKey(e) {
+    const k = e.key, S = snake.st; if (!S) return false;
+    const map = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], z: [0, -1], w: [0, -1], s: [0, 1], q: [-1, 0], a: [-1, 0], d: [1, 0] };
+    const m = map[k.length === 1 ? k.toLowerCase() : k];
+    if (m && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); snakeTurn({ x: m[0], y: m[1] }); return true; }
+    if (k === ' ' || k === 'Enter') { e.preventDefault(); S.running ? snakePause() : snakeStart(); return true; }
+    if (k === 'Escape' && S.running) { snakePause(); return true; }
+    return false;
   }
 
   /* =========================================================
@@ -2309,7 +2557,7 @@ body.zen .timer { visibility: hidden; }
   function refreshAll() {
     buildTabs(); updateStatus();
     const s = SHEETS[active]; if (!s) return;
-    if (s.id === 'home') renderHome(sheetEls.home); else if (s.id === 'rank') renderRank(sheetEls.rank);
+    if (s.id === 'home') renderHome(sheetEls.home); else if (s.id === 'rank') renderRank(sheetEls.rank); else if (s.id === 'snake') snakeSide();
     for (const id in sessions) renderSide(id);
     sizeCanvas();
   }
@@ -2426,7 +2674,7 @@ body.zen .timer { visibility: hidden; }
     const esc = (e) => { if (e.key === 'Escape') close(); };
     const pages = {
       'Ouvrir': () => { body.append(h('h1', null, 'Ouvrir'), h('div', { class: 'tiles' }, ...SHEETS.map((s, i) => h('button', { class: 'tile', onclick: () => { close(); go(i); } },
-        h('div', { class: 'thumb', style: { background: s.game ? s.game.color : 'var(--accent)' } }, s.icon), h('div', { class: 'meta' }, h('b', null, s.name + '.xlsx'), h('span', null, s.game ? s.game.tagline : s.id === 'home' ? 'Tableau de bord du jour' : 'Résultats de tous les joueurs')))))); },
+        h('div', { class: 'thumb', style: { background: s.game ? s.game.color : 'var(--accent)' } }, s.icon), h('div', { class: 'meta' }, h('b', null, s.name + '.xlsx'), h('span', null, s.game ? s.game.tagline : s.id === 'home' ? 'Tableau de bord du jour' : s.id === 'snake' ? 'La sélection qui grandit, hors classement' : 'Résultats de tous les joueurs')))))); },
       'Nouveau': () => { body.append(h('h1', null, 'Nouveau'), h('p', null, 'Démarre une partie libre (un puzzle unique, généré à la volée).'), h('div', { class: 'tiles' }, ...GAMES.map((g) => h('button', { class: 'tile', onclick: () => { close(); go(SHEETS.findIndex((s) => s.id === g.id)); startGame(g.id, 'libre'); } },
         h('div', { class: 'thumb', style: { background: g.color } }, g.icon), h('div', { class: 'meta' }, h('b', null, 'Classeur vierge : ' + g.name), h('span', null, g.mech)))))); },
       'Partager': () => { body.append(h('h1', null, 'Partager'), h('p', null, 'Les résultats circulent par lien, sans compte ni serveur.'), h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
@@ -2490,6 +2738,7 @@ body.zen .timer { visibility: hidden; }
   });
   document.addEventListener('keydown', (e) => {
     const typing = /INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName);
+    if (!typing && !$('.overlay') && SHEETS[active] && SHEETS[active].id === 'snake' && snakeKey(e)) return;
     if ((e.altKey || e.ctrlKey || e.metaKey) && (e.key === 'PageDown' || e.key === 'PageUp')) { e.preventDefault(); cmd(e.key === 'PageDown' ? 'next' : 'prev'); return; }
     if (e.key === 'F1') { e.preventDefault(); cmd('rules'); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); cmd('save'); return; }
@@ -2513,6 +2762,15 @@ body.zen .timer { visibility: hidden; }
   });
   matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyPrefs);
   document.querySelector('.corner').addEventListener('click', () => { toast('Ctrl+A : tout sélectionner… mais tout est déjà parfait. ✨'); });
+
+  /* ---------- Synchro partagée ---------- */
+  let syncT = null;
+  XL.sync.onChange((st) => {
+    $('#saved').textContent = syncLabel();
+    $('#saved').title = st === 'online' ? 'Les résultats de tous les joueurs sont partagés en direct' : st === 'readonly' ? 'Tu peux voir les résultats partagés, mais pas en ajouter (demande un accès Contributeur)' : 'Résultats gardés dans ce navigateur';
+    clearTimeout(syncT); syncT = setTimeout(refreshAll, 150);
+  });
+  XL.sync.init();
 
   /* ---------- Démarrage ---------- */
   applyPrefs();
