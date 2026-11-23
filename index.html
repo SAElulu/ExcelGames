@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Détente.xlsx</title>
+  <meta name="description" content="Un classeur de mini casse-têtes relaxants, à jouer seul ou entre amis.">
+  <meta name="theme-color" content="#217346">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23217346'/%3E%3Cpath d='M8 8h16v16H8z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Cpath d='M8 13.3h16M8 18.6h16M13.3 8v16M18.6 8v16' stroke='%23fff' stroke-width='1.2' opacity='.8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Barre de titre -->
+  <header class="titlebar">
+    <div class="logo" aria-hidden="true">D</div>
+    <div class="qat">
+      <button data-cmd="save" title="Enregistrer (Ctrl+S)">💾</button>
+      <button data-cmd="undo" title="Annuler (Ctrl+Z)">↶</button>
+      <button data-cmd="hint" title="Indice (H)">💡</button>
+    </div>
+    <div class="doc"><span id="docname">Détente.xlsx</span><span class="saved" id="saved">· Enregistré</span></div>
+    <label class="search" title="Rechercher une feuille ou une commande">
+      <span aria-hidden="true">🔍</span>
+      <input id="search" placeholder="Rechercher (jeux, commandes…)" autocomplete="off">
+      <div class="results" id="search-results"></div>
+    </label>
+    <button class="who" data-cmd="player" title="Changer de joueur"><span id="who-name">—</span><span class="avatar" id="who-avatar">?</span></button>
+  </header>
+
+  <!-- Onglets du ruban -->
+  <nav class="ribbon-tabs" id="rtabs">
+    <button class="rtab file" data-cmd="backstage">Fichier</button>
+    <button class="rtab active" data-rt="accueil">Accueil</button>
+    <button class="rtab" data-rt="insertion">Insertion</button>
+    <button class="rtab" data-rt="formules">Formules</button>
+    <button class="rtab" data-rt="donnees">Données</button>
+    <button class="rtab" data-rt="affichage">Affichage</button>
+    <button class="rtab" data-rt="aide">Aide</button>
+    <span class="spacer"></span>
+    <button class="rtab small" data-cmd="ribbon" id="ribbon-toggle" title="Réduire le ruban">⌃</button>
+  </nav>
+
+  <!-- Ruban -->
+  <section class="ribbon" id="ribbon">
+    <div class="rpanel active" data-rp="accueil">
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="importcode" title="Coller un code de partage reçu"><span class="ic">📋</span>Coller<br>un code</button>
+        <div class="rstack">
+          <button class="rsm" data-cmd="copycode"><span class="ic">⧉</span>Copier mon code</button>
+          <button class="rsm" data-cmd="sharelink"><span class="ic">🔗</span>Lien de partage</button>
+          <button class="rsm" data-cmd="summary"><span class="ic">✎</span>Résumé du jour</button>
+        </div>
+      </div><div class="label">Presse-papiers</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="daily"><span class="ic">📅</span>Puzzle<br>du jour</button>
+        <button class="rbtn" data-cmd="libre"><span class="ic">🎲</span>Partie<br>libre</button>
+        <button class="rbtn" data-cmd="hint"><span class="ic">💡</span>Indice</button>
+        <div class="rstack">
+          <button class="rsm" data-cmd="undo"><span class="ic">↶</span>Annuler</button>
+          <button class="rsm" data-cmd="reset"><span class="ic">⌫</span>Effacer tout</button>
+          <button class="rsm" data-cmd="rules"><span class="ic">?</span>Règles</button>
+        </div>
+      </div><div class="label">Partie</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="player" id="rb-player"><span class="ic"><span class="avatar" id="rb-avatar" style="width:26px;height:26px;border:0">?</span></span><span id="rb-name">Joueur</span></button>
+        <button class="rbtn" data-cmd="gotoRank"><span class="ic">🏆</span>Classement</button>
+      </div><div class="label">Joueurs</div></div>
+      <div class="rgroup"><div class="items">
+        <div class="swatches" id="swatches">
+          <button data-cmd="accent-vert" style="background:#217346" title="Vert"></button>
+          <button data-cmd="accent-bleu" style="background:#2b579a" title="Bleu"></button>
+          <button data-cmd="accent-violet" style="background:#7b3fa0" title="Violet"></button>
+          <button data-cmd="accent-corail" style="background:#c4502a" title="Corail"></button>
+        </div>
+        <button class="rbtn" data-cmd="dark"><span class="ic">🌓</span>Mode<br>sombre</button>
+      </div><div class="label">Styles</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="prev"><span class="ic">◀</span>Feuille<br>précédente</button>
+        <button class="rbtn" data-cmd="next"><span class="ic">▶</span>Feuille<br>suivante</button>
+        <button class="rbtn" data-cmd="nextTodo"><span class="ic">⏭</span>Prochaine<br>à faire</button>
+      </div><div class="label">Navigation</div></div>
+    </div>
+
+    <div class="rpanel" data-rp="insertion">
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="addplayer"><span class="ic">👤</span>Nouveau<br>joueur</button>
+        <button class="rbtn" data-cmd="surprise"><span class="ic">✨</span>Feuille<br>surprise</button>
+      </div><div class="label">Éléments</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="gotoRank"><span class="ic">📊</span>Graphique</button>
+        <button class="rbtn" data-cmd="rules"><span class="ic">🗨</span>Commentaire</button>
+        <button class="rbtn" data-cmd="confetti"><span class="ic">🎉</span>Confettis</button>
+      </div><div class="label">Illustrations</div></div>
+    </div>
+
+    <div class="rpanel" data-rp="formules" id="rp-formules">
+      <div class="rgroup"><div class="items" id="fn-lib"></div><div class="label">Bibliothèque de fonctions (les jeux)</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="recalc"><span class="ic">⟳</span>Calculer<br>maintenant</button>
+      </div><div class="label">Calcul</div></div>
+    </div>
+
+    <div class="rpanel" data-rp="donnees">
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="sharelink"><span class="ic">🔗</span>Lien de<br>partage</button>
+        <button class="rbtn" data-cmd="copycode"><span class="ic">⧉</span>Copier<br>mon code</button>
+        <button class="rbtn" data-cmd="importcode"><span class="ic">⇩</span>Importer<br>un code</button>
+      </div><div class="label">Partager les résultats</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="dljson"><span class="ic">💾</span>Exporter<br>.json</button>
+        <button class="rbtn" data-cmd="uljson"><span class="ic">📂</span>Charger<br>.json</button>
+        <button class="rbtn" data-cmd="wipe"><span class="ic">🗑</span>Vider les<br>données</button>
+      </div><div class="label">Sauvegarde</div></div>
+    </div>
+
+    <div class="rpanel" data-rp="affichage">
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="dark" data-toggle="dark"><span class="ic">🌓</span>Mode<br>sombre</button>
+        <button class="rbtn" data-cmd="zen" data-toggle="zen"><span class="ic">🧘</span>Mode zen<br>(sans chrono)</button>
+        <div class="rstack">
+          <button class="rsm" data-cmd="grid" data-toggle="grid"><span class="ic">▦</span>Quadrillage</button>
+          <button class="rsm" data-cmd="anim" data-toggle="anim"><span class="ic">✦</span>Animations</button>
+          <button class="rsm" data-cmd="sound" data-toggle="sound"><span class="ic">♪</span>Sons</button>
+        </div>
+      </div><div class="label">Afficher</div></div>
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="zoomout"><span class="ic">－</span>Zoom<br>arrière</button>
+        <button class="rbtn" data-cmd="zoom100"><span class="ic">100</span>100 %</button>
+        <button class="rbtn" data-cmd="zoomin"><span class="ic">＋</span>Zoom<br>avant</button>
+        <button class="rbtn" data-cmd="fullscreen"><span class="ic">⛶</span>Plein<br>écran</button>
+      </div><div class="label">Zoom</div></div>
+    </div>
+
+    <div class="rpanel" data-rp="aide">
+      <div class="rgroup"><div class="items">
+        <button class="rbtn" data-cmd="rules"><span class="ic">?</span>Règles<br>du jeu</button>
+        <button class="rbtn" data-cmd="shortcuts"><span class="ic">⌨</span>Raccourcis</button>
+        <button class="rbtn" data-cmd="about"><span class="ic">ℹ</span>À propos</button>
+      </div><div class="label">Aide</div></div>
+    </div>
+  </section>
+
+  <!-- Barre de formule -->
+  <div class="formulabar">
+    <div class="namebox" id="namebox">A1</div>
+    <div class="fxbtns"><span>✕</span><span>✓</span><b>fx</b></div>
+    <div class="fxtext" id="fx"></div>
+  </div>
+
+  <!-- Feuille -->
+  <main class="sheet-wrap" id="sheetwrap">
+    <div class="corner" title="Tout sélectionner"></div>
+    <div class="colhead" id="colhead"><div class="inner" id="colinner"></div></div>
+    <div class="rowhead" id="rowhead"><div class="inner" id="rowinner"></div></div>
+    <div class="scroll" id="scroll">
+      <div class="canvas" id="canvas">
+        <div class="selbox hidden" id="selbox"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Onglets de feuilles -->
+  <footer class="tabsbar">
+    <div class="tabnav">
+      <button data-cmd="prev" title="Feuille précédente">◀</button>
+      <button data-cmd="next" title="Feuille suivante">▶</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="hscroll" aria-hidden="true"><i></i></div>
+  </footer>
+
+  <!-- Barre d'état -->
+  <footer class="statusbar">
+    <div class="mode" id="mode"><span id="mode-text">Prêt</span><span class="prog"><i id="prog"></i></span></div>
+    <span id="st-player"></span>
+    <span class="timer" id="timer"></span>
+    <span class="grow"></span>
+    <span class="agg" id="agg"></span>
+    <span class="views"><button class="on" title="Normal">▤</button><button title="Mise en page" data-cmd="fullscreen">▭</button><button title="Mode zen" data-cmd="zen">◫</button></span>
+    <span class="zoom"><button data-cmd="zoomout">−</button><input type="range" id="zoom" min="60" max="160" step="10" value="100" aria-label="Zoom"><button data-cmd="zoomin">+</button><output id="zoomval">100 %</output></span>
+  </footer>
+</div>
+<div class="toasts" id="toasts"></div>
+<input type="file" id="file" accept=".json,application/json" hidden>
+
+<script src="js/core.js"></script>
+<script src="js/games.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
