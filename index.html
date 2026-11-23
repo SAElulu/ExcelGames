@@ -484,21 +484,47 @@ body.zen .timer { visibility: hidden; }
 
 /* ---------- Serpent ---------- */
 .sheet[data-sheet="snake"] { min-height: 100%; }
-.snake-zone { position: absolute; outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 0; background: color-mix(in srgb, var(--accent) 4%, transparent); touch-action: none; user-select: none; -webkit-user-select: none; cursor: cell; }
-.sn-cell { position: absolute; width: var(--cw); height: var(--rh); font-family: var(--cell-font); font-size: 13px; line-height: var(--rh); text-align: right; padding-right: 5px; transition: left .06s linear, top .06s linear; }
-body.noanim .sn-cell { transition: none; }
-.sn-body { background: color-mix(in srgb, #1e7145 calc((1 - var(--t)) * 100%), #a9d08e); color: #fff; border: 1px solid rgba(255,255,255,.35); font-weight: 600; }
-.sn-head { background: color-mix(in srgb, var(--accent) 18%, var(--bg)); border: 2px solid var(--accent); z-index: 2; }
-.sn-head::after { content: ""; position: absolute; right: -4px; bottom: -4px; width: 6px; height: 6px; background: var(--accent); border: 1px solid var(--bg); }
-.sn-food { color: var(--text); font-weight: 700; background: #ffeb9c; border: 1px solid #e5cf73; color: #6b5500; animation: pop .25s ease; }
-.sn-food.gold { background: linear-gradient(135deg, #ffd54f, #ffb300); color: #4a3200; border-color: #c79100; }
+.snake-zone { position: absolute; outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 4%, transparent); touch-action: none; user-select: none; -webkit-user-select: none; cursor: cell; overflow: hidden; }
+.sn-cell { position: absolute; left: 0; top: 0; width: var(--cw); height: var(--rh); font-family: var(--cell-font); font-size: 13px; line-height: var(--rh); text-align: right; padding-right: 5px; transition-property: transform; transition-timing-function: linear; will-change: transform; }
+body.noanim .sn-cell { transition: none !important; }
+.sn-body { background: color-mix(in srgb, #1e7145 calc((1 - var(--t)) * 100%), #a9d08e); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); font-weight: 600; }
+.sn-head { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); box-shadow: inset 0 0 0 2px var(--accent); z-index: 2; }
+.sn-head::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 6px; height: 6px; background: var(--accent); border: 1px solid var(--bg); }
+.sn-head.sn-dead { box-shadow: inset 0 0 0 2px var(--danger); background: #ffc7ce; }
+.sn-food { z-index: 1; font-weight: 700; background: #fff2b3; box-shadow: inset 0 0 0 1px #e5cf73; color: #6b5500; transition: none; }
+.sn-food::before { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px #e5b800; opacity: 0; animation: foodIn .45s ease-out both; }
+@keyframes foodIn { 0% { opacity: 1; box-shadow: inset 0 0 0 6px #ffd54f; } 100% { opacity: 1; box-shadow: inset 0 0 0 1px #e5cf73; } }
+.sn-food.gold { background: linear-gradient(135deg, #ffe082, #ffb300); color: #4a3200; box-shadow: inset 0 0 0 1px #c79100; }
+.sn-wall { z-index: 1; background: #ffc7ce; color: #9c0006; font-weight: 700; font-size: 11.5px; text-align: center; padding: 0; box-shadow: inset 0 0 0 1px #f2a0aa; transition: none; animation: wallIn .5s ease both; }
+@keyframes wallIn { from { opacity: 0; } }
+.sn-plus { position: absolute; left: 0; top: 0; width: var(--cw); height: var(--rh); line-height: var(--rh); text-align: center; font-weight: 800; font-family: var(--cell-font); color: var(--ok); pointer-events: none; z-index: 4; animation: plusUp .8s ease-out forwards; }
+.sn-plus.gold { color: #b07800; }
+@keyframes plusUp { to { margin-top: -26px; opacity: 0; } }
 .sn-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); padding: 14px 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; min-width: 220px; z-index: 5; font-size: 13px; }
 .sn-msg b { font-size: 16px; }
 .sn-err { font-family: var(--cell-font); font-size: 26px; font-weight: 700; color: var(--danger); }
 .sn-rec { color: var(--ok); font-weight: 700; }
 .snake-side { position: absolute; display: flex; flex-direction: column; gap: 14px; width: min(300px, calc(100vw - 80px)); }
+.sn-kpis { display: flex; gap: 6px; }
+.sn-kpi { width: auto; flex: 1; min-height: 0; padding: 4px 8px; }
+.sn-kpi .v { font-size: 20px; font-variant-numeric: tabular-nums; }
 .sn-pad { display: grid; grid-template-columns: repeat(3, 48px); grid-auto-rows: 40px; gap: 4px; justify-content: start; }
 .sn-pad .btn { justify-content: center; font-size: 15px; padding: 0; }
+
+/* Pixels : sélecteur d'outil */
+.pix-tools { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
+.pix-tools button { border: 0; background: none; padding: 6px 12px; display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.pix-tools button + button { border-left: 1px solid var(--line); }
+.pix-tools button.on { background: var(--accent); color: #fff; }
+.pix-tools .sw { width: 13px; height: 13px; display: inline-grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; }
+.pix-tools .sw.fill { background: currentColor; }
+.pix-hint { font-size: 11.5px; color: var(--soft); }
+.b-pix .gcell.cross::after { content: "✕"; color: #c42b1c; opacity: .75; font-weight: 700; font-size: calc(var(--cs) * .34); }
+.b-pix .gcell.cross { background: color-mix(in srgb, var(--head) 70%, transparent); }
+.b-pix.mode-cross .gcell { cursor: not-allowed; }
+.corner-tool { flex-direction: column; align-items: flex-end; gap: 6px; }
+.home-who { font-size: 12.5px; color: var(--muted); }
+.home-who button { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0 2px; }
 
 </style>
 </head>
@@ -577,7 +603,7 @@ body.noanim .sn-cell { transition: none; }
 
     <div class="rpanel" data-rp="insertion">
       <div class="rgroup"><div class="items">
-        <button class="rbtn" data-cmd="addplayer"><span class="ic">👤</span>Nouveau<br>joueur</button>
+        <button class="rbtn" data-cmd="player"><span class="ic">👥</span>Changer de<br>joueur</button>
         <button class="rbtn" data-cmd="surprise"><span class="ic">✨</span>Feuille<br>surprise</button>
       </div><div class="label">Éléments</div></div>
       <div class="rgroup"><div class="items">
@@ -745,9 +771,12 @@ body.noanim .sn-cell { transition: none; }
 
   /* ---------- Joueurs ---------- */
   const PLAYER_COLORS = ['#217346', '#2b6cb0', '#c05621', '#805ad5', '#b83280', '#2c7a7b', '#975a16', '#c53030'];
+  // La bande : liste fixe, pas besoin d'en ajouter
+  const FIXED_PLAYERS = ['Lucas', 'Rémi', 'Baptou', 'Anouchka'];
   const players = {
-    list() { return store.get('players', ['Lucas', 'Rémi']); },
+    list() { return FIXED_PLAYERS.slice(); },
     add(name) {
+      return false; // liste fixe
       name = String(name || '').trim().slice(0, 18);
       if (!name) return false;
       const l = players.list();
@@ -755,7 +784,7 @@ body.noanim .sn-cell { transition: none; }
       l.push(name); store.set('players', l); sync.pushPlayer(name); return true;
     },
     remove(name) { store.set('players', players.list().filter((p) => p !== name)); },
-    current() { return store.get('player', null); },
+    current() { const p = store.get('player', null); return FIXED_PLAYERS.includes(p) ? p : null; },
     setCurrent(n) { store.set('player', n); },
     color(name) { const i = Math.abs(hashStr(name || '?')) % PLAYER_COLORS.length; return PLAYER_COLORS[i]; },
     initials(name) { return (name || '?').slice(0, 2).toUpperCase(); }
@@ -1545,7 +1574,8 @@ body.noanim .sn-cell { transition: none; }
     rules: [
       'Les nombres indiquent les blocs de cases colorées sur chaque ligne et colonne, dans l\'ordre.',
       '« 3 1 » = un bloc de 3, au moins une case vide, puis un bloc de 1.',
-      'Clic = colorier, clic droit (ou mode ✕) = marquer vide. Glisse pour aller plus vite.',
+      'Outil « Croix » (ou touche X, clic droit, appui long sur mobile) pour marquer une case vide. Glisse pour aller plus vite.',
+      'Une ligne complète se remplit toute seule de croix.',
       'Une fois fini, le dessin se révèle en couleurs.'
     ],
     create(root, api) {
@@ -1568,10 +1598,17 @@ body.noanim .sn-cell { transition: none; }
         if (r % blk === blk - 1 && r < N - 1) el.classList.add('sep-b');
         cells.push(el); board.append(el);
       }
-      const toolBtn = h('button', { class: 'chip tool', onclick: () => { tool = tool === 1 ? 2 : 1; paintTool(); } });
-      const paintTool = () => { toolBtn.innerHTML = tool === 1 ? '<i class="sw fill"></i> Mode : colorier' : '<i class="sw cross">✕</i> Mode : marquer vide'; };
-      paintTool();
-      wrap.append(h('div', { class: 'corner-tool' }, toolBtn), colClues, rowClues, board);
+      const tbFill = h('button', { type: 'button', onclick: () => setTool(1), title: 'Colorier (touche C)' }, h('i', { class: 'sw fill' }), 'Colorier');
+      const tbCross = h('button', { type: 'button', onclick: () => setTool(2), title: 'Croix : case vide (touche X)' }, h('i', { class: 'sw' }, '✕'), 'Croix');
+      const setTool = (t) => { tool = t; tbFill.classList.toggle('on', t === 1); tbCross.classList.toggle('on', t === 2); board.classList.toggle('mode-cross', t === 2); };
+      setTool(1);
+      wrap.append(h('div', { class: 'corner-tool' }, h('div', { class: 'pix-tools', role: 'group', 'aria-label': 'Outil' }, tbFill, tbCross), h('div', { class: 'pix-hint' }, 'X : croix · clic droit / appui long')), colClues, rowClues, board);
+      const onKey = (e) => {
+        if (done || !board.isConnected || !board.offsetParent || /INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName) || e.ctrlKey || e.metaKey || e.altKey) return;
+        const k = e.key.toLowerCase();
+        if (k === 'x') { setTool(tool === 2 ? 1 : 2); e.preventDefault(); } else if (k === 'c') setTool(1);
+      };
+      document.addEventListener('keydown', onKey);
       root.append(wrap);
       const same = (a, b) => a.length === b.length && a.every((v, k) => v === b[k]);
       function render() {
@@ -1591,20 +1628,35 @@ body.noanim .sn-cell { transition: none; }
           api.win({});
         }
       }
-      let target = -1, seen = null;
-      const act = (i) => { st[i] = target; };
+      function autoCross() {
+        for (let r = 0; r < N; r++) { const l = st.slice(r * N, r * N + N).map((v) => (v === 1 ? 1 : 0)); if (same(clueOf(l), P.rows[r])) for (let c = 0; c < N; c++) if (st[r * N + c] === 0) st[r * N + c] = 2; }
+        for (let c = 0; c < N; c++) { const l = []; for (let r = 0; r < N; r++) l.push(st[r * N + c] === 1 ? 1 : 0); if (same(clueOf(l), P.cols[c])) for (let r = 0; r < N; r++) if (st[r * N + c] === 0) st[r * N + c] = 2; }
+      }
+      let target = -1, from = -1, seen = null, pending = null, lpTimer = null;
+      const act = (i) => { if (st[i] === from) st[i] = target; };
+      const begin = (i, t) => { from = st[i]; target = st[i] === t ? 0 : t; seen = new Set([i]); act(i); api.sound(target === 1 ? 'place' : 'tick'); render(); };
       board.addEventListener('contextmenu', (e) => e.preventDefault());
       board.addEventListener('pointerdown', (e) => {
         if (done) return; const i = cellFromEvent(e, board); if (i < 0) return;
         e.preventDefault(); hist.push();
-        const t = e.button === 2 ? 2 : tool;
-        target = st[i] === t ? 0 : t; seen = new Set([i]); act(i); api.sound(target === 1 ? 'place' : 'tick'); render();
+        if (e.pointerType === 'touch' && tool === 1) {
+          // appui long = croix, tap = outil courant
+          pending = i; clearTimeout(lpTimer);
+          lpTimer = setTimeout(() => { if (pending === i) { pending = null; begin(i, 2); if (navigator.vibrate) navigator.vibrate(12); } }, 380);
+          return;
+        }
+        begin(i, e.button === 2 ? 2 : tool);
       });
       board.addEventListener('pointermove', (e) => {
-        if (target < 0) return; const i = cellFromEvent(e, board);
+        const i = cellFromEvent(e, board);
+        if (pending !== null) { if (i >= 0 && i !== pending) { clearTimeout(lpTimer); const p0 = pending; pending = null; begin(p0, tool); } else return; }
+        if (target < 0) return;
         if (i < 0 || seen.has(i)) return; seen.add(i); act(i); api.sound('soft'); render();
       });
-      const up = () => { if (target >= 0) { target = -1; hist.dropIfSame(); } };
+      const up = () => {
+        if (pending !== null) { clearTimeout(lpTimer); const p0 = pending; pending = null; begin(p0, tool); }
+        if (target >= 0) { target = -1; autoCross(); render(); hist.dropIfSame(); }
+      };
       window.addEventListener('pointerup', up);
       render();
       return {
@@ -1615,9 +1667,9 @@ body.noanim .sn-cell { transition: none; }
           if (done) return false; hist.push();
           let i = st.findIndex((v, k) => (v === 1) !== (P.g[k] === 1) && v !== 0);
           if (i < 0) { const cand = st.map((v, k) => (v === 0 && P.g[k] === 1 ? k : -1)).filter((k) => k >= 0); if (!cand.length) return false; i = cand[Math.floor(Math.random() * cand.length)]; }
-          st[i] = P.g[i] ? 1 : 2; pulse(cells[i]); render(); return true;
+          st[i] = P.g[i] ? 1 : 2; autoCross(); pulse(cells[i]); render(); return true;
         },
-        destroy() { window.removeEventListener('pointerup', up); }
+        destroy() { window.removeEventListener('pointerup', up); document.removeEventListener('keydown', onKey); }
       };
     }
   });
@@ -2236,26 +2288,31 @@ body.noanim .sn-cell { transition: none; }
 
   /* =========================================================
      Serpent — la sélection qui grandit (hors classement)
+     Éléments DOM persistants : rien ne clignote, tout glisse.
      ========================================================= */
-  const snake = { st: null, zone: null, side: null, timer: null };
+  const snake = { st: null, zone: null, side: null, timer: null, segs: [], food: null, walls: [], msg: null, kSum: null, kLen: null, kBest: null };
   const SN_C0 = 1, SN_R0 = 5; // la zone démarre en B6
+  const ref2 = (x, y) => colName(SN_C0 + x) + (SN_R0 + y + 1);
   function renderSnake(el) {
     if (!el.dataset.built) {
       el.dataset.built = '1'; el.innerHTML = '';
       el.append(
         h('div', { class: 's-title' }, h('div', { class: 'gicon', style: { background: '#107c41' } }, '🐍'), h('div', { class: 'big' }, h('b', null, 'Serpent'), ' ', h('span', { style: { fontSize: '15px', color: 'var(--muted)' } }, '=SERPENT()')), h('span', { class: 'tag' }, 'pause détente · hors classement')),
-        h('div', { class: 's-sub' }, 'Dirige la sélection avec les flèches (ou ZQSD), mange les valeurs. Évite le #REF! et les références circulaires.'));
+        h('div', { class: 's-sub' }, 'Flèches, ZQSD ou glisser : mange les valeurs, évite les bords (#REF!), ta queue (référence circulaire) et les #DIV/0!.'));
       snake.zone = h('div', { class: 'snake-zone' });
       snake.side = h('div', { class: 'snake-side' });
       el.append(snake.zone, snake.side);
-      let sx = 0, sy = 0;
-      snake.zone.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; });
-      snake.zone.addEventListener('pointerup', (e) => {
-        const dx = e.clientX - sx, dy = e.clientY - sy;
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) { if (!snake.st.running) snakeStart(); return; }
-        snakeTurn(Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) });
+      let sx = 0, sy = 0, down = false;
+      snake.zone.addEventListener('pointerdown', (e) => { down = true; sx = e.clientX; sy = e.clientY; });
+      snake.zone.addEventListener('pointermove', (e) => {
+        if (!down) return; const dx = e.clientX - sx, dy = e.clientY - sy;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) >= 28) { snakeTurn(Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) }); sx = e.clientX; sy = e.clientY; }
       });
-      snakeLayout(); snakeReset();
+      snake.zone.addEventListener('pointerup', (e) => {
+        if (!down) return; down = false;
+        if (Math.max(Math.abs(e.clientX - sx), Math.abs(e.clientY - sy)) < 10 && !snake.st.running && !e.target.closest('button')) snakeStart();
+      });
+      snakeSideBuild(); snakeReset();
     }
     snakeSide(); snakeDraw();
   }
@@ -2271,72 +2328,118 @@ body.noanim .sn-cell { transition: none; }
   function snakeReset() {
     clearTimeout(snake.timer);
     const { cols, rows } = snakeLayout();
+    snake.zone.innerHTML = ''; snake.segs = []; snake.walls = []; snake.food = null; snake.msg = null;
     const y = Math.floor(rows / 2), x = Math.floor(cols / 3);
-    snake.st = { cols, rows, body: [{ x, y }, { x: x - 1, y }, { x: x - 2, y }], vals: [0, 0, 0], dir: { x: 1, y: 0 }, queue: [], score: 0, running: false, over: null, speed: 170, eaten: 0, msg: 'start' };
-    snakeFood(); snakeDraw(); snakeSide(); updateStatus();
+    snake.st = { cols, rows, body: [{ x, y }, { x: x - 1, y }, { x: x - 2, y }], vals: [0, 0, 0], dir: { x: 1, y: 0 }, queue: [], score: 0, running: false, over: null, speed: 165, eaten: 0, msg: 'start', walls: [], foodId: 0, record: false };
+    snakeFood(); snakeDraw(); snakeStats(); updateStatus();
+  }
+  const occupied = (S, x, y) => S.body.some((b) => b.x === x && b.y === y) || S.walls.some((w) => w.x === x && w.y === y) || (S.food && S.food.x === x && S.food.y === y);
+  function snakeFree(S, minDist) {
+    const hd = S.body[0], free = [];
+    for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) if (!occupied(S, x, y) && Math.abs(x - hd.x) + Math.abs(y - hd.y) >= minDist) free.push({ x, y });
+    return free.length ? free[Math.floor(Math.random() * free.length)] : null;
   }
   function snakeFood() {
-    const S = snake.st, free = [];
-    for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) if (!S.body.some((b) => b.x === x && b.y === y)) free.push({ x, y });
-    const f = free[Math.floor(Math.random() * free.length)];
-    const r = Math.random();
-    S.food = Object.assign(f, r < 0.12 ? { v: 10, gold: true } : { v: 1 + Math.floor(Math.random() * 9) });
+    const S = snake.st; S.food = null;
+    const f = snakeFree(S, 2); if (!f) return;
+    S.food = Object.assign(f, Math.random() < 0.12 ? { v: 10, gold: true } : { v: 1 + Math.floor(Math.random() * 9) }, { id: ++S.foodId });
   }
-  const ref2 = (x, y) => colName(SN_C0 + x) + (SN_R0 + y + 1);
+  function snakeWall() {
+    const S = snake.st; if (S.walls.length >= 10) return;
+    const w = snakeFree(S, 4); if (!w) return;
+    S.walls.push(Object.assign(w, { label: Math.random() < 0.5 ? '#DIV/0!' : '#N/A', fresh: true }));
+  }
+  function place(el, x, y) { el.style.transform = `translate(${x * CW()}px, ${y * RH()}px)`; }
   function snakeDraw() {
     const S = snake.st, z = snake.zone; if (!S || !z) return;
-    const cw = CW(), rh = RH(); z.innerHTML = '';
-    const frag = document.createDocumentFragment();
+    const dur = Math.max(50, S.speed - 10) + 'ms';
+    // segments (réutilisés : la sélection glisse au lieu de clignoter)
+    while (snake.segs.length < S.body.length) {
+      const i = snake.segs.length, b = S.body[i];
+      const el = h('div', { class: 'sn-cell sn-body' }); el.style.transition = 'none'; place(el, b.x, b.y);
+      z.append(el); snake.segs.push(el);
+      requestAnimationFrame(() => { el.style.transition = ''; });
+    }
+    while (snake.segs.length > S.body.length) snake.segs.pop().remove();
     const n = S.body.length;
     S.body.forEach((b, i) => {
-      const t = n > 1 ? i / (n - 1) : 0;
-      const el = h('div', { class: 'sn-cell ' + (i === 0 ? 'sn-head' : 'sn-body'), style: { left: b.x * cw + 'px', top: b.y * rh + 'px', '--t': t } }, i && S.vals[i] ? String(S.vals[i]) : '');
-      frag.append(el);
+      const el = snake.segs[i];
+      el.className = 'sn-cell ' + (i === 0 ? 'sn-head' : 'sn-body');
+      el.style.setProperty('--t', n > 1 ? i / (n - 1) : 0);
+      el.style.transitionDuration = dur;
+      const txt = i && S.vals[i] ? String(S.vals[i]) : '';
+      if (el.textContent !== txt) el.textContent = txt;
+      place(el, b.x, b.y);
     });
-    if (S.food) frag.append(h('div', { class: 'sn-cell sn-food' + (S.food.gold ? ' gold' : ''), style: { left: S.food.x * cw + 'px', top: S.food.y * rh + 'px' } }, S.food.gold ? '★10' : String(S.food.v)));
+    // nourriture : recréée seulement quand elle change de place
+    if (S.food && (!snake.food || snake.food.dataset.id !== String(S.food.id))) {
+      if (snake.food) snake.food.remove();
+      const f = h('div', { class: 'sn-cell sn-food' + (S.food.gold ? ' gold' : ''), 'data-id': S.food.id }, S.food.gold ? '★ 10' : String(S.food.v));
+      place(f, S.food.x, S.food.y); z.append(f); snake.food = f;
+    }
+    // erreurs-obstacles
+    S.walls.forEach((w, i) => {
+      if (!snake.walls[i]) { const e = h('div', { class: 'sn-cell sn-wall' }, w.label); place(e, w.x, w.y); z.append(e); snake.walls[i] = e; }
+    });
+    // message
+    if (snake.msg) { snake.msg.remove(); snake.msg = null; }
     if (S.msg) {
       const box = h('div', { class: 'sn-msg' });
       if (S.msg === 'start') box.append(h('b', null, 'Prêt à calculer ?'), h('span', null, 'Espace, Entrée ou un tap pour démarrer.'), h('button', { class: 'btn primary', onclick: snakeStart }, '▶ Jouer'));
       else if (S.msg === 'pause') box.append(h('b', null, '⏸ Pause'), h('span', null, 'Espace pour reprendre.'), h('button', { class: 'btn primary', onclick: snakeStart }, '▶ Reprendre'));
       else {
-        const circ = S.over === 'circ';
+        const T = { ref: ['#REF!', 'La sélection est sortie de la plage.'], circ: ['⚠ Référence circulaire', 'La sélection fait référence à sa propre cellule.'], div: ['#DIV/0!', 'La sélection a percuté une cellule en erreur.'] }[S.over];
         box.classList.add('err');
-        box.append(h('div', { class: 'sn-err' }, circ ? '⚠ Référence circulaire' : '#REF!'),
-          h('span', null, circ ? 'La sélection fait référence à sa propre cellule.' : 'La sélection est sortie de la plage.'),
-          h('span', null, `=SOMME(Serpent) → `, h('b', null, String(S.score)), ` · longueur ${S.body.length}`),
+        box.append(h('div', { class: 'sn-err' }, T[0]), h('span', null, T[1]),
+          h('span', null, '=SOMME(Serpent) → ', h('b', null, String(S.score)), ` · longueur ${S.body.length}`),
           S.record ? h('span', { class: 'sn-rec' }, '🏅 Nouveau record perso !') : '',
-          h('button', { class: 'btn primary', onclick: () => { snakeReset(); snakeStart(); } }, '↺ Rejouer'));
+          h('button', { class: 'btn primary', onclick: () => { snakeReset(); snakeStart(); } }, '↺ Rejouer (Entrée)'));
       }
-      frag.append(box);
+      z.append(box); snake.msg = box;
     }
-    z.append(frag);
     const hd = S.body[0];
     if (SHEETS[active] && SHEETS[active].id === 'snake') {
       namebox.textContent = ref2(hd.x, hd.y);
-      setFx(`=SOMME(${ref2(0, 0)}:${ref2(S.cols - 1, S.rows - 1)}) → ${S.score}`);
+      fx.textContent = `=SOMME(${ref2(0, 0)}:${ref2(S.cols - 1, S.rows - 1)}) → ${S.score}`;
     }
   }
-  function snakeSide() {
-    const sd = snake.side; if (!sd) return;
-    const best = XL.snakeScores.all();
-    const rows = Object.keys(best).map((p) => ({ p, b: best[p] })).sort((a, b) => b.b - a.b).slice(0, 8);
-    sd.innerHTML = '';
+  function snakePlus(x, y, v, gold) {
+    const p = h('div', { class: 'sn-plus' + (gold ? ' gold' : '') }, '+' + v); place(p, x, y);
+    snake.zone.append(p); setTimeout(() => p.remove(), 800);
+  }
+  function snakeSideBuild() {
+    const kpi2 = (k) => { const v = h('div', { class: 'v' }, '0'); return [h('div', { class: 'kpi sn-kpi' }, h('div', { class: 'k' }, k), v), v]; };
+    const [a, va] = kpi2('Somme'), [b, vb] = kpi2('Longueur'), [c, vc] = kpi2('Ton record');
+    snake.kSum = va; snake.kLen = vb; snake.kBest = vc;
+    snake.sideTop = h('div', { class: 'sn-kpis' }, a, b, c);
+    snake.sideBest = h('div', { class: 'mini' });
     const pad = h('div', { class: 'sn-pad' },
       h('span'), h('button', { class: 'btn', onclick: () => snakeTurn({ x: 0, y: -1 }), 'aria-label': 'Haut' }, '▲'), h('span'),
       h('button', { class: 'btn', onclick: () => snakeTurn({ x: -1, y: 0 }), 'aria-label': 'Gauche' }, '◀'),
       h('button', { class: 'btn', onclick: () => (snake.st.running ? snakePause() : snakeStart()), 'aria-label': 'Pause' }, '⏯'),
       h('button', { class: 'btn', onclick: () => snakeTurn({ x: 1, y: 0 }), 'aria-label': 'Droite' }, '▶'),
       h('span'), h('button', { class: 'btn', onclick: () => snakeTurn({ x: 0, y: 1 }), 'aria-label': 'Bas' }, '▼'), h('span'));
-    sd.append(
-      h('div', { class: 'mini' }, h('h5', null, 'Meilleures sommes'),
-        h('table', { class: 'xtable compact' }, h('thead', null, h('tr', null, h('th', null, 'Joueur'), h('th', { class: 'num' }, 'Record'))),
-          h('tbody', null, ...(rows.length ? rows.map((r, k) => h('tr', null, h('td', null, h('span', { class: 'who-mini' }, h('span', { class: 'dot', style: { background: XL.players.color(r.p) } }, XL.players.initials(r.p)), (['🥇 ', '🥈 ', '🥉 '][k] || '') + r.p)), h('td', { class: 'num' }, String(r.b))))
-            : [h('tr', null, h('td', { colspan: 2, style: { color: 'var(--soft)' } }, 'Aucun record encore.'))])))),
-      pad,
+    snake.side.append(snake.sideTop, pad, snake.sideBest,
       h('div', { class: 'note' }, h('div', { class: 'by' }, 'Note · Serpent'), h('ul', null,
         h('li', null, 'Chaque valeur mangée s\'ajoute à la somme et allonge la sélection.'),
-        h('li', null, '★10 : une cellule dorée qui vaut 10.'),
+        h('li', null, '★ 10 : une cellule dorée, rare.'),
+        h('li', null, 'Tous les 4 repas, une cellule en erreur (#DIV/0!, #N/A) apparaît : contourne-la.'),
         h('li', null, 'Pas de chrono, pas de classement du jour : juste pour se vider la tête.'))));
+  }
+  function snakeStats() {
+    const S = snake.st; if (!S || !snake.kSum) return;
+    snake.kSum.textContent = S.score; snake.kLen.textContent = S.body.length;
+    snake.kBest.textContent = (XL.snakeScores.all()[player] || 0);
+  }
+  function snakeSide() {
+    if (!snake.sideBest) return;
+    const best = XL.snakeScores.all();
+    const rows = XL.players.list().map((p) => ({ p, b: best[p] || 0 })).sort((a, b) => b.b - a.b);
+    snake.sideBest.innerHTML = '';
+    snake.sideBest.append(h('h5', null, 'Meilleures sommes'),
+      h('table', { class: 'xtable compact' }, h('thead', null, h('tr', null, h('th', null, 'Joueur'), h('th', { class: 'num' }, 'Record'))),
+        h('tbody', null, ...rows.map((r, k) => h('tr', null, h('td', null, h('span', { class: 'who-mini' }, h('span', { class: 'dot', style: { background: XL.players.color(r.p) } }, XL.players.initials(r.p)), (r.b ? (['🥇 ', '🥈 ', '🥉 '][k] || '') : '') + r.p)), h('td', { class: 'num' }, r.b ? String(r.b) : '—'))))));
+    snakeStats();
   }
   function snakeTurn(d) {
     const S = snake.st; if (!S || S.over) return;
@@ -2352,31 +2455,37 @@ body.noanim .sn-cell { transition: none; }
     S.running = true; S.msg = null; snakeDraw();
     clearTimeout(snake.timer); snake.timer = setTimeout(snakeStep, S.speed);
   }
-  function snakePause(silent) {
+  function snakePause() {
     const S = snake.st; if (!S || !S.running) return;
     S.running = false; S.msg = 'pause'; clearTimeout(snake.timer); snakeDraw();
   }
   function snakeStep() {
     const S = snake.st; if (!S || !S.running) return;
-    if (!SHEETS[active] || SHEETS[active].id !== 'snake' || document.hidden || $('.overlay')) { snakePause(true); return; }
+    if (!SHEETS[active] || SHEETS[active].id !== 'snake' || document.hidden || $('.overlay')) { snakePause(); return; }
     if (S.queue.length) S.dir = S.queue.shift();
     const hd = S.body[0], nx = { x: hd.x + S.dir.x, y: hd.y + S.dir.y };
     const eat = S.food && nx.x === S.food.x && nx.y === S.food.y;
-    const hitWall = nx.x < 0 || nx.y < 0 || nx.x >= S.cols || nx.y >= S.rows;
-    const bodyCheck = eat ? S.body : S.body.slice(0, -1);
-    if (hitWall || bodyCheck.some((b) => b.x === nx.x && b.y === nx.y)) return snakeOver(hitWall ? 'ref' : 'circ');
+    if (nx.x < 0 || nx.y < 0 || nx.x >= S.cols || nx.y >= S.rows) return snakeOver('ref');
+    if ((eat ? S.body : S.body.slice(0, -1)).some((b) => b.x === nx.x && b.y === nx.y)) return snakeOver('circ');
+    if (S.walls.some((w) => w.x === nx.x && w.y === nx.y)) return snakeOver('div');
     S.body.unshift(nx);
     if (eat) {
-      S.vals.splice(1, 0, S.food.v); S.score += S.food.v; S.eaten++;
-      S.speed = Math.max(75, S.speed - 4); sound(S.food.gold ? 'win' : 'place'); snakeFood();
+      const f = S.food;
+      S.vals.splice(1, 0, f.v); S.score += f.v; S.eaten++;
+      S.speed = Math.max(80, S.speed - 3); sound(f.gold ? 'win' : 'place');
+      snakePlus(f.x, f.y, f.v, f.gold);
+      snakeFood();
+      if (S.eaten % 4 === 0) snakeWall();
+      snakeStats(); updateStatus();
     } else S.body.pop();
-    snakeDraw(); updateStatus();
+    snakeDraw();
     snake.timer = setTimeout(snakeStep, S.speed);
   }
   function snakeOver(kind) {
     const S = snake.st; S.running = false; S.over = kind; S.msg = 'over'; clearTimeout(snake.timer);
     S.record = XL.snakeScores.submit(player, S.score);
     sound('erase'); snakeDraw(); snakeSide();
+    if (snake.segs[0]) snake.segs[0].classList.add('sn-dead');
     if (S.record && S.score >= 30) confetti();
   }
   function snakeKey(e) {
@@ -2384,7 +2493,7 @@ body.noanim .sn-cell { transition: none; }
     const map = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], z: [0, -1], w: [0, -1], s: [0, 1], q: [-1, 0], a: [-1, 0], d: [1, 0] };
     const m = map[k.length === 1 ? k.toLowerCase() : k];
     if (m && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); snakeTurn({ x: m[0], y: m[1] }); return true; }
-    if (k === ' ' || k === 'Enter') { e.preventDefault(); S.running ? snakePause() : snakeStart(); return true; }
+    if (k === ' ' || k === 'Enter') { e.preventDefault(); if (S.over) { snakeReset(); snakeStart(); } else if (S.running) snakePause(); else snakeStart(); return true; }
     if (k === 'Escape' && S.running) { snakePause(); return true; }
     return false;
   }
@@ -2400,7 +2509,7 @@ body.noanim .sn-cell { transition: none; }
     const hello = new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir';
     el.append(
       h('div', { class: 's-title' }, h('div', { class: 'big' }, `${hello} `, h('b', null, player || 'toi'), ' 👋'), h('span', { class: 'tag' }, XL.prettyDate(day))),
-      h('div', { class: 's-sub' }, 'Six petites feuilles de calcul à résoudre, sans pression. Les mêmes puzzles pour tout le monde aujourd\'hui.')
+      h('div', { class: 's-sub' }, 'Six petites feuilles de calcul à résoudre, sans pression. Les mêmes puzzles pour tout le monde aujourd\'hui. ', h('span', { class: 'home-who' }, `Pas ${player} ?`, h('button', { onclick: () => choosePlayer(false) }, 'Changer de joueur')))
     );
     el.append(h('div', { class: 'kpis' },
       kpi('Feuilles du jour', `${doneToday}`, ` / ${GAMES.length}`),
@@ -2510,10 +2619,7 @@ body.noanim .sn-cell { transition: none; }
     const ps = XL.players.list();
     const grid = h('div', { class: 'players-pick' }, ...ps.map((p) => h('button', { class: 'ppick' + (p === player ? ' cur' : ''), onclick: () => { setPlayer(p); close(); } },
       h('span', { class: 'avatar', style: { background: XL.players.color(p) } }, XL.players.initials(p)), h('b', null, p))));
-    const inp = h('input', { type: 'text', placeholder: 'Ajouter un joueur…', maxlength: 18 });
-    const add = () => { const n = inp.value.trim(); if (XL.players.add(n)) { setPlayer(n); close(); } else if (n) toast('Ce joueur existe déjà.'); };
-    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
-    const close = dialog('Qui joue ?', h('div', null, h('p', { class: 'muted' }, 'Choisis ton profil. Tes résultats seront enregistrés à ton nom.'), grid, h('div', { class: 'addrow' }, inp, h('button', { class: 'btn primary', onclick: add }, 'Ajouter'))), [], { locked: force });
+    const close = dialog('Qui joue ?', h('div', null, h('p', { class: 'muted' }, 'Choisis ton profil. Le classeur s\'en souviendra sur cet appareil.'), grid), [], { locked: force });
   }
   function setPlayer(p) {
     const changed = p !== player; player = p; XL.players.setCurrent(p);
@@ -2789,9 +2895,9 @@ body.noanim .sn-cell { transition: none; }
     const i = SHEETS.findIndex((s) => s.id === hash); if (i >= 0) start = i;
   }
   go(start, { force: true });
-  if (!player) setTimeout(() => choosePlayer(true), 250);
+  if (!player) { setPlayer('Lucas'); setTimeout(() => toast('👤 Tu joues en tant que Lucas. Pas toi ? Clique sur le nom en haut à droite.', 5000), 600); }
   setTimeout(() => toast('Astuce : Alt + Page suiv. pour changer de feuille, comme dans un vrai tableur.'), 1800);
-  window.__detente = { go, cmd, sessions, SHEETS };
+  window.__detente = { go, cmd, sessions, SHEETS, snake };
 })();
 
 </script>
