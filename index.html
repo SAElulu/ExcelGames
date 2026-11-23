@@ -704,6 +704,11 @@ body.noanim .sn-cell { transition: none !important; }
 <input type="file" id="file" accept=".json,application/json" hidden>
 
 <script>
+  /* Synchro en ligne sur GitHub Pages : colle ici la config Firebase (Paramètres du projet → Vos applications → Config).
+     Laisser à null = scores gardés sur l'appareil + partage par lien court. */
+  window.DETENTE_FIREBASE = null;
+</script>
+<script>
 /* =========================================================
    Détente.xlsx — noyau : hasard seedé, stockage, joueurs, résultats, partage
    ========================================================= */
@@ -823,9 +828,20 @@ body.noanim .sn-cell { transition: none !important; }
     pushResult(r) { const c = Object.assign({}, r); for (const k in c) if (c[k] === undefined) delete c[k]; return sync.write('results/' + enc(r.id), c); },
     pushPlayer(name) { return sync.write('players/' + enc(name), { name }); },
     pushSnake(p, best) { return sync.write('snake/' + enc(p), { p, best }); },
+    async firebase() {
+      const cfg = window.DETENTE_FIREBASE; if (!cfg || !cfg.projectId) return null;
+      const V = '10.12.2', load = (u) => new Promise((ok, ko) => { const s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = ko; document.head.append(s); });
+      try {
+        await load(`https://www.gstatic.com/firebasejs/${V}/firebase-app-compat.js`);
+        await load(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore-compat.js`);
+        const app = window.firebase.apps.length ? window.firebase.app() : window.firebase.initializeApp(cfg);
+        return app.firestore(); // même interface que la base claude.ai : collection().onSnapshot, doc().set
+      } catch (e) { console.warn('firebase', e); return null; }
+    },
     async init() {
-      if (!window.claude || typeof window.claude.use !== 'function') return;
-      let db = null; try { db = await window.claude.use('db'); } catch (e) {}
+      let db = null;
+      if (window.claude && typeof window.claude.use === 'function') { try { db = await window.claude.use('db'); } catch (e) {} }
+      if (!db) db = await sync.firebase();
       if (!db) return;
       sync.db = db; sync.state = 'connecting'; sync.emit();
       const remoteIds = new Set(); let uploaded = false;
@@ -913,8 +929,25 @@ body.noanim .sn-cell { transition: none !important; }
       const rows = list.map((r) => [r.p, r.g, r.d, r.t, r.h || 0, r.s == null ? '' : r.s, r.ts, r.d === 'libre' ? r.id : '']);
       return 'XLJ1.' + b64e(JSON.stringify(rows));
     },
+    // Code court : uniquement mes résultats du jour, ~40 caractères
+    GAME_IDS: ['couronnes', 'binaire', 'liaison', 'somme', 'pixels', 'indices'],
+    shortCode(p, day) {
+      const pi = FIXED_PLAYERS.indexOf(p); if (pi < 0) return null;
+      const dn = Math.floor(Date.parse(day + 'T12:00:00Z') / 864e5);
+      const es = results.all().filter((r) => r.p === p && r.d === day).map((r) => [share.GAME_IDS.indexOf(r.g), Math.round(r.t), r.h || 0, r.s == null ? '' : r.s].map((v) => (v === '' ? '' : Number(v).toString(36))).join('.')).filter((e) => !e.startsWith('-'));
+      return 'XL2.' + pi + '.' + dn.toString(36) + '.' + es.join('~');
+    },
     decode(code) {
       code = String(code || '').trim();
+      const m2 = code.match(/XL2\.(\d)\.([0-9a-z]+)\.([0-9a-z.~]*)/);
+      if (m2) {
+        const p = FIXED_PLAYERS[+m2[1]]; if (!p) throw new Error('Joueur inconnu');
+        const d = new Date(parseInt(m2[2], 36) * 864e5), day = d.toISOString().slice(0, 10);
+        return (m2[3] ? m2[3].split('~') : []).map((e) => {
+          const [g, t, h, s] = e.split('.'); const gid = share.GAME_IDS[parseInt(g, 36)];
+          return gid ? { p, g: gid, d: day, t: parseInt(t, 36), h: parseInt(h || '0', 36), s: s ? parseInt(s, 36) : undefined, ts: Date.parse(day + 'T12:00:00Z'), id: p + '|' + gid + '|' + day } : null;
+        }).filter(Boolean);
+      }
       const m = code.match(/XLJ1\.([A-Za-z0-9_-]+)/);
       if (!m) throw new Error('Code non reconnu');
       const rows = JSON.parse(b64d(m[1]));
@@ -2637,17 +2670,19 @@ body.noanim .sn-cell { transition: none !important; }
      Partage / import / export
      ========================================================= */
   function shareDialog() {
-    const code = XL.share.exportCode();
-    const link = XL.share.link(code);
-    const ta = h('textarea', { readonly: true }); ta.value = link;
+    const short = XL.share.shortCode(player, XL.todayKey());
+    const longCode = XL.share.exportCode();
+    const ta = h('textarea', { readonly: true, style: { height: '64px' } }); ta.value = XL.share.link(short || longCode);
+    const online = XL.sync.state === 'online';
     dialog('Partager mes résultats', h('div', null,
-      h('p', null, 'Envoie ce lien (WhatsApp, SMS, mail…). En l\'ouvrant, ton ami importe tes résultats dans son classeur, et inversement.'),
-      ta, h('p', { class: 'muted', style: { marginTop: '8px' } }, 'Contient les résultats de ce classeur des 45 derniers jours. Aucun serveur, aucun compte.')), [
-      { label: '⧉ Copier le code seul', onClick: () => { copy(code); toast('Code copié'); return false; } },
-      { label: '⧉ Copier le lien', primary: true, onClick: () => { copy(link); toast('Lien copié 🔗'); } }], { wide: true });
+      online ? h('p', { class: 'banner', style: { marginBottom: '10px' } }, '☁ La synchro est active : tout le monde voit déjà tes résultats, pas besoin de lien.') : null,
+      h('p', null, 'Envoie ce lien court : en l\'ouvrant, ton ami importe tes résultats du jour.'),
+      ta, h('p', { class: 'muted', style: { marginTop: '8px' } }, 'Pour rattraper plusieurs jours d\'un coup, utilise « Tout mon historique ».')), [
+      { label: 'Tout mon historique', onClick: () => { const l = XL.share.link(longCode); copy(l); toast('Lien complet copié (plus long)'); return false; } },
+      { label: '⧉ Copier le lien court', primary: true, onClick: () => { copy(ta.value); toast('Lien copié 🔗'); } }], { wide: true });
   }
   function importDialog(prefill) {
-    const ta = h('textarea', { placeholder: 'Colle ici un lien ou un code XLJ1.…' }); if (prefill) ta.value = prefill;
+    const ta = h('textarea', { placeholder: 'Colle ici un lien ou un code (XL2.… ou XLJ1.…)' }); if (prefill) ta.value = prefill;
     dialog('Importer des résultats', h('div', null, h('p', null, 'Colle le lien ou le code reçu d\'un autre joueur.'), ta), [
       { label: 'Annuler' },
       { label: 'Importer', primary: true, onClick: () => doImport(ta.value) }]);
@@ -2726,7 +2761,7 @@ body.noanim .sn-cell { transition: none !important; }
       case 'gotoHome': go(0); break;
       case 'player': choosePlayer(false); break;
       case 'addplayer': choosePlayer(false); setTimeout(() => { const i = $('.addrow input'); i && i.focus(); }, 80); break;
-      case 'copycode': copy(XL.share.exportCode()).then((ok) => toast(ok ? 'Code de partage copié ⧉' : 'Copie impossible ici')); break;
+      case 'copycode': copy(XL.share.shortCode(player, XL.todayKey()) || XL.share.exportCode()).then((ok) => toast(ok ? 'Code de partage copié ⧉' : 'Copie impossible ici')); break;
       case 'sharelink': shareDialog(); break;
       case 'importcode': importDialog(); break;
       case 'summary': { const t = summaryText(); copy(t); dialog('Résumé du jour', h('pre', { style: { margin: 0, fontFamily: 'var(--cell-font)', fontSize: '14px' } }, t), [{ label: 'OK (déjà copié)', primary: true }]); break; }
