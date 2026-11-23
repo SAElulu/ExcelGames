@@ -526,6 +526,36 @@ body.noanim .sn-cell { transition: none !important; }
 .home-who { font-size: 12.5px; color: var(--muted); }
 .home-who button { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0 2px; }
 
+/* ---------- Mode Normal / Difficile ---------- */
+.mode-switch { display: flex; background: rgba(0,0,0,.18); border-radius: 999px; padding: 2px; gap: 2px; margin-left: 8px; flex-shrink: 0; }
+.mode-switch button { border: 0; background: none; color: rgba(255,255,255,.85); font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; white-space: nowrap; }
+.mode-switch button:hover { background: rgba(255,255,255,.14); }
+.mode-switch button.on { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+html.hard .mode-switch button.on { color: #b3261e; }
+html.hard .titlebar { background: linear-gradient(90deg, #7a1f1a, #a8321f); }
+html.hard .ribbon-tabs { box-shadow: inset 0 -2px 0 #c0392b; }
+.hard-pill { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; padding: 1px 6px; border-radius: 3px; background: #c0392b; color: #fff; vertical-align: 1px; }
+.tag.hard-tag { background: #fde2df; color: #a8321f; border-color: #f3b6ae; }
+@media (max-width: 700px) { .mode-switch button { padding: 3px 7px; font-size: 11px; } }
+/* ---------- Niveaux ---------- */
+.lvl-dialog { min-width: 0; }
+.lvl-bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 4px 0 12px; }
+.lvl-bar i { display: block; height: 100%; border-radius: 4px; transition: width .5s; }
+.lvl-tier h5 { margin: 10px 0 6px; font-size: 13px; }
+.lvl-tier h5 span { color: var(--muted); font-weight: 400; }
+.lvl-grid { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 620px) { .lvl-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+.lvl { height: 34px; border: 1px solid var(--line); background: var(--bg); color: inherit; border-radius: 4px; font: inherit; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; transition: transform .12s, background .2s; }
+.lvl:hover { transform: translateY(-1px); border-color: var(--gc); }
+.lvl.done { background: var(--gc); color: #fff; border-color: var(--gc); font-weight: 700; }
+.lvl.next { box-shadow: 0 0 0 2px var(--gc) inset; font-weight: 700; }
+.lvl.cur { outline: 2px dashed var(--gc); outline-offset: 1px; }
+.lvl-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lvl-nav { margin-left: auto; display: flex; gap: 4px; }
+.lvl-nav .btn { padding: 2px 10px; }
+.lvl-link { border: 1px solid var(--line); background: none; color: inherit; font: inherit; font-size: 12px; border-radius: 3px; padding: 2px 6px; cursor: pointer; white-space: nowrap; }
+.lvl-link:hover { border-color: var(--accent); color: var(--accent); }
+
 </style>
 </head>
 <body>
@@ -544,6 +574,7 @@ body.noanim .sn-cell { transition: none !important; }
       <input id="search" placeholder="Rechercher (jeux, commandes…)" autocomplete="off">
       <div class="results" id="search-results"></div>
     </label>
+    <div class="mode-switch" id="mode-switch" role="group" aria-label="Difficulté"><button data-cmd="mode-normal" class="on" title="Mode Normal : tes résultats habituels">Normal</button><button data-cmd="mode-hard" title="Mode Difficile : grilles plus grandes, classement séparé">🌶 Difficile</button></div>
     <button class="who" data-cmd="player" title="Changer de joueur"><span id="who-name">—</span><span class="avatar" id="who-avatar">?</span></button>
   </header>
 
@@ -573,7 +604,8 @@ body.noanim .sn-cell { transition: none !important; }
       </div><div class="label">Presse-papiers</div></div>
       <div class="rgroup"><div class="items">
         <button class="rbtn" data-cmd="daily"><span class="ic">📅</span>Puzzle<br>du jour</button>
-        <button class="rbtn" data-cmd="libre"><span class="ic">🎲</span>Partie<br>libre</button>
+        <button class="rbtn" data-cmd="levels"><span class="ic">🧩</span>Niveaux<br>(60 par jeu)</button>
+        <button class="rbtn" data-cmd="libre"><span class="ic">🎲</span>Partie<br>aléatoire</button>
         <button class="rbtn" data-cmd="hint"><span class="ic">💡</span>Indice</button>
         <div class="rstack">
           <button class="rsm" data-cmd="undo"><span class="ic">↶</span>Annuler</button>
@@ -774,6 +806,17 @@ body.noanim .sn-cell { transition: none !important; }
     del(k) { try { localStorage.removeItem(NS + k); } catch (e) {} }
   };
 
+  /* ---------- Mode de jeu : Normal / Difficile, 100 % séparés ---------- */
+  const isDay = (d) => /^\d{4}-\d\d-\d\d$/.test(String(d));
+  const mode = {
+    cur: store.get('mode', 'normal') === 'hard' ? 'hard' : 'normal',
+    get() { return mode.cur; },
+    hard() { return mode.cur === 'hard'; },
+    set(m) { mode.cur = m === 'hard' ? 'hard' : 'normal'; store.set('mode', mode.cur); },
+    key(base, m) { return (m || mode.cur) === 'hard' ? base + '-hard' : base; },   // clé locale
+    col(base, m) { return (m || mode.cur) === 'hard' ? base + '_hard' : base; }     // collection partagée
+  };
+
   /* ---------- Joueurs ---------- */
   const PLAYER_COLORS = ['#217346', '#2b6cb0', '#c05621', '#805ad5', '#b83280', '#2c7a7b', '#975a16', '#c53030'];
   // La bande : liste fixe, pas besoin d'en ajouter
@@ -800,16 +843,16 @@ body.noanim .sn-cell { transition: none !important; }
      Sur GitHub Pages (pas de base), tout reste local + partage par lien. */
   const enc = (s) => encodeURIComponent(String(s)).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16)).replace(/%/g, '~').slice(0, 190) || 'x';
   const snakeScores = {
-    all() { return store.get('snake', {}); },
+    all(md) { return store.get(mode.key('snake', md), {}); },
     submit(p, score) {
       const m = snakeScores.all();
       if (!p || score <= (m[p] || 0)) return false;
-      m[p] = score; store.set('snake', m); sync.pushSnake(p, score); return true;
+      m[p] = score; store.set(mode.key('snake'), m); sync.pushSnake(p, score); return true;
     },
-    mergeRemote(list) {
-      const m = snakeScores.all(); let ch = false;
+    mergeRemote(list, md) {
+      const m = snakeScores.all(md); let ch = false;
       for (const x of list) if (x && x.p && +x.best > (m[x.p] || 0)) { m[String(x.p).slice(0, 18)] = +x.best; ch = true; }
-      if (ch) store.set('snake', m); return ch;
+      if (ch) store.set(mode.key('snake', md), m); return ch;
     }
   };
   const sync = {
@@ -825,9 +868,9 @@ body.noanim .sn-cell { transition: none !important; }
         console.warn('sync', e);
       }
     },
-    pushResult(r) { const c = Object.assign({}, r); for (const k in c) if (c[k] === undefined) delete c[k]; return sync.write('results/' + enc(r.id), c); },
+    pushResult(r, md) { const c = Object.assign({}, r); for (const k in c) if (c[k] === undefined) delete c[k]; return sync.write(mode.col('results', md) + '/' + enc(r.id), c); },
     pushPlayer(name) { return sync.write('players/' + enc(name), { name }); },
-    pushSnake(p, best) { return sync.write('snake/' + enc(p), { p, best }); },
+    pushSnake(p, best, md) { return sync.write(mode.col('snake', md) + '/' + enc(p), { p, best }); },
     async firebase() {
       const cfg = window.DETENTE_FIREBASE; if (!cfg || !cfg.projectId) return null;
       const V = '10.12.2', load = (u) => new Promise((ok, ko) => { const s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = ko; document.head.append(s); });
@@ -844,38 +887,35 @@ body.noanim .sn-cell { transition: none !important; }
       if (!db) db = await sync.firebase();
       if (!db) return;
       sync.db = db; sync.state = 'connecting'; sync.emit();
-      const remoteIds = new Set(); let uploaded = false;
       const timer = setTimeout(() => { if (sync.state === 'connecting') { sync.state = 'offline'; sync.emit(); } }, 10000);
-      db.collection('results').onSnapshot((snap) => {
-        const list = snap.docs.map((d) => d.data()).filter(Boolean);
-        list.forEach((r) => remoteIds.add(r.id));
-        const n = results.merge(list);
-        if (!snap.metadata.fromCache) {
-          clearTimeout(timer);
-          if (sync.state !== 'readonly') sync.state = 'online';
-          if (!uploaded) {
-            uploaded = true;
-            (async () => { for (const r of results.all()) if (!remoteIds.has(r.id)) await sync.pushResult(r); })();
-            (async () => { for (const p of players.list()) await sync.pushPlayer(p); })();
-            (async () => { const m = snakeScores.all(); for (const p in m) await sync.pushSnake(p, m[p]); })();
+      for (const md of ['normal', 'hard']) {
+        const remoteIds = new Set(); let uploaded = false;
+        db.collection(mode.col('results', md)).onSnapshot((snap) => {
+          const list = snap.docs.map((d) => d.data()).filter(Boolean);
+          list.forEach((r) => remoteIds.add(r.id));
+          const n = results.merge(list, md);
+          if (!snap.metadata.fromCache) {
+            clearTimeout(timer);
+            if (sync.state !== 'readonly') sync.state = 'online';
+            if (!uploaded) {
+              uploaded = true;
+              (async () => { for (const r of results.all(md)) if (!remoteIds.has(r.id)) await sync.pushResult(r, md); })();
+              (async () => { const m = snakeScores.all(md); for (const p in m) await sync.pushSnake(p, m[p], md); })();
+              if (md === 'normal') (async () => { for (const p of players.list()) await sync.pushPlayer(p); })();
+            }
           }
-        }
-        if (n || !snap.metadata.fromCache) sync.emit();
-      }, (e) => { clearTimeout(timer); sync.state = 'offline'; sync.emit(); });
-      db.collection('players').onSnapshot((snap) => {
-        let ch = false;
-        snap.docs.forEach((d) => { const v = d.data(); if (v && v.name) { const l = players.list(); if (!l.some((p) => p.toLowerCase() === String(v.name).toLowerCase())) { l.push(String(v.name).slice(0, 18)); store.set('players', l); ch = true; } } });
-        if (ch) sync.emit();
-      }, () => {});
-      db.collection('snake').onSnapshot((snap) => { if (snakeScores.mergeRemote(snap.docs.map((d) => d.data()))) sync.emit(); }, () => {});
+          if (n || !snap.metadata.fromCache) sync.emit();
+        }, (e) => { clearTimeout(timer); sync.state = 'offline'; sync.emit(); });
+        db.collection(mode.col('snake', md)).onSnapshot((snap) => { if (snakeScores.mergeRemote(snap.docs.map((d) => d.data()), md)) sync.emit(); }, () => {});
+      }
     }
   };
 
   /* ---------- Résultats ----------
      r = { id, p: joueur, g: jeu, d: 'YYYY-MM-DD' | 'libre', t: secondes, h: indices, s: score annexe, ts } */
   const results = {
-    all() { return store.get('results', []); },
-    save(list) { store.set('results', list); },
+    all(md) { return store.get(mode.key('results', md), []); },
+    save(list, md) { store.set(mode.key('results', md), list); },
     add(r) {
       const l = results.all();
       r.id = r.id || (r.p + '|' + r.g + '|' + r.d + (r.d === 'libre' ? '|' + Date.now().toString(36) : ''));
@@ -885,22 +925,21 @@ body.noanim .sn-cell { transition: none !important; }
     },
     daily(p, g, d) { return results.all().find((r) => r.p === p && r.g === g && r.d === d) || null; },
     forDay(d) { return results.all().filter((r) => r.d === d); },
-    merge(incoming) {
-      const l = results.all(); const ids = new Set(l.map((r) => r.id));
+    merge(incoming, md) {
+      const l = results.all(md); const ids = new Set(l.map((r) => r.id));
       let n = 0;
       for (const r of incoming) {
         if (!r || !r.id || !r.p || !r.g || ids.has(r.id)) continue;
         l.push({ id: String(r.id), p: String(r.p).slice(0, 18), g: String(r.g), d: String(r.d), t: +r.t || 0, h: +r.h || 0, s: r.s == null ? undefined : +r.s, ts: +r.ts || Date.now() });
         ids.add(r.id); n++;
-        players.add(String(r.p).slice(0, 18));
       }
-      results.save(l); return n;
+      if (n) results.save(l, md); return n;
     }
   };
 
   /* ---------- Stats « zen » ---------- */
   function streak(p, today) {
-    const days = new Set(results.all().filter((r) => r.p === p && r.d !== 'libre').map((r) => r.d));
+    const days = new Set(results.all().filter((r) => r.p === p && isDay(r.d)).map((r) => r.d));
     let n = 0, k = today;
     if (!days.has(k)) k = addDays(k, -1); // la série n'est pas cassée tant que la journée n'est pas finie
     while (days.has(k)) { n++; k = addDays(k, -1); }
@@ -908,12 +947,13 @@ body.noanim .sn-cell { transition: none !important; }
   }
   function statsFor(p, today) {
     const rs = results.all().filter((r) => r.p === p);
-    const daily = rs.filter((r) => r.d !== 'libre');
-    const libre = rs.filter((r) => r.d === 'libre');
+    const daily = rs.filter((r) => isDay(r.d));
+    const libre = rs.filter((r) => !isDay(r.d));
+    const levels = new Set(rs.filter((r) => /^niv-/.test(r.d)).map((r) => r.g + r.d)).size;
     const clean = rs.filter((r) => !r.h).length;
     const zen = daily.length * 10 + libre.length * 5 + clean * 3 + streak(p, today) * 2;
     const avg = daily.length ? daily.reduce((a, r) => a + r.t, 0) / daily.length : null;
-    return { p, daily: daily.length, libre: libre.length, clean, zen, avg, streak: streak(p, today), today: daily.filter((r) => r.d === today).length };
+    return { p, daily: daily.length, libre: libre.length, clean, zen, avg, streak: streak(p, today), today: daily.filter((r) => r.d === today).length, levels };
   }
   const TITLES = [
     [0, 'Stagiaire du tableur'], [30, 'Apprenti des cellules'], [80, 'Maître du copier-coller'],
@@ -927,7 +967,7 @@ body.noanim .sn-cell { transition: none !important; }
   const share = {
     encode(list) {
       const rows = list.map((r) => [r.p, r.g, r.d, r.t, r.h || 0, r.s == null ? '' : r.s, r.ts, r.d === 'libre' ? r.id : '']);
-      return 'XLJ1.' + b64e(JSON.stringify(rows));
+      return (mode.hard() ? 'XHJ1.' : 'XLJ1.') + b64e(JSON.stringify(rows));
     },
     // Code court : uniquement mes résultats du jour, ~40 caractères
     GAME_IDS: ['couronnes', 'binaire', 'liaison', 'somme', 'pixels', 'indices'],
@@ -935,23 +975,26 @@ body.noanim .sn-cell { transition: none !important; }
       const pi = FIXED_PLAYERS.indexOf(p); if (pi < 0) return null;
       const dn = Math.floor(Date.parse(day + 'T12:00:00Z') / 864e5);
       const es = results.all().filter((r) => r.p === p && r.d === day).map((r) => [share.GAME_IDS.indexOf(r.g), Math.round(r.t), r.h || 0, r.s == null ? '' : r.s].map((v) => (v === '' ? '' : Number(v).toString(36))).join('.')).filter((e) => !e.startsWith('-'));
-      return 'XL2.' + pi + '.' + dn.toString(36) + '.' + es.join('~');
+      return (mode.hard() ? 'XH2.' : 'XL2.') + pi + '.' + dn.toString(36) + '.' + es.join('~');
     },
     decode(code) {
       code = String(code || '').trim();
-      const m2 = code.match(/XL2\.(\d)\.([0-9a-z]+)\.([0-9a-z.~]*)/);
+      const m2 = code.match(/X([LH])2\.(\d)\.([0-9a-z]+)\.([0-9a-z.~]*)/);
       if (m2) {
+        const md = m2[1] === 'H' ? 'hard' : 'normal'; m2.splice(1, 1);
         const p = FIXED_PLAYERS[+m2[1]]; if (!p) throw new Error('Joueur inconnu');
         const d = new Date(parseInt(m2[2], 36) * 864e5), day = d.toISOString().slice(0, 10);
-        return (m2[3] ? m2[3].split('~') : []).map((e) => {
+        const out = (m2[3] ? m2[3].split('~') : []).map((e) => {
           const [g, t, h, s] = e.split('.'); const gid = share.GAME_IDS[parseInt(g, 36)];
           return gid ? { p, g: gid, d: day, t: parseInt(t, 36), h: parseInt(h || '0', 36), s: s ? parseInt(s, 36) : undefined, ts: Date.parse(day + 'T12:00:00Z'), id: p + '|' + gid + '|' + day } : null;
         }).filter(Boolean);
+        out.mode = md; return out;
       }
-      const m = code.match(/XLJ1\.([A-Za-z0-9_-]+)/);
+      const m = code.match(/X([LH])J1\.([A-Za-z0-9_-]+)/);
       if (!m) throw new Error('Code non reconnu');
-      const rows = JSON.parse(b64d(m[1]));
-      return rows.map(([p, g, d, t, h, s, ts, id]) => ({ p, g, d, t, h, s: s === '' ? undefined : s, ts, id: id || (p + '|' + g + '|' + d) }));
+      const rows = JSON.parse(b64d(m[2]));
+      const out = rows.map(([p, g, d, t, h, s, ts, id]) => ({ p, g, d, t, h, s: s === '' ? undefined : s, ts, id: id || (p + '|' + g + '|' + d) }));
+      out.mode = m[1] === 'H' ? 'hard' : 'normal'; return out;
     },
     // Par défaut : les résultats des 45 derniers jours (le lien reste court)
     exportCode(onlyPlayer) {
@@ -965,7 +1008,7 @@ body.noanim .sn-cell { transition: none !important; }
     }
   };
 
-  window.XL = { sync, snakeScores, hashStr, makeRng, todayKey, prettyDate, shortDate, addDays, fmtTime, store, players, results, statsFor, streak, titleFor, share };
+  window.XL = { mode, isDay, sync, snakeScores, hashStr, makeRng, todayKey, prettyDate, shortDate, addDays, fmtTime, store, players, results, statsFor, streak, titleFor, share };
 })();
 
 </script>
@@ -1023,6 +1066,14 @@ body.noanim .sn-cell { transition: none !important; }
   }
 
   const GAMES = [];
+  /* Taille selon le mode : puzzle du jour, partie libre, ou niveau 1→60 (progressif) */
+  function pickSize(api, normal, hard) {
+    const [d, lo, hi] = api.hard ? hard : normal;
+    if (api.mode === 'daily') return d;
+    if (api.mode === 'level') { const t = Math.min(1, Math.max(0, (api.level - 1) / 59)); return Math.round(lo + t * (hi - lo)); }
+    return lo + api.rng.int(hi - lo + 1);
+  }
+  const levelT = (api) => (api.mode === 'level' ? Math.min(1, (api.level - 1) / 59) : api.mode === 'daily' ? 0.5 : api.rng());
 
   /* =========================================================
      1. COURONNES — une couronne par ligne, colonne et zone, sans contact
@@ -1076,7 +1127,7 @@ body.noanim .sn-cell { transition: none !important; }
   }
   function genCouronnes(rng, N) {
     let first = null;
-    for (let a = 0; a < 500; a++) {
+    for (let a = 0, A = N >= 9 ? 160 : 500; a < A; a++) {
       const q = placeQueens(rng, N), reg = growRegions(rng, N, q);
       if (!first) first = { reg, sol: q };
       if (countQueens(N, reg, 2) === 1) return { reg, sol: q, unique: true };
@@ -1094,7 +1145,7 @@ body.noanim .sn-cell { transition: none !important; }
       '1 clic = ✕ (repère), 2 clics = ♛, 3 clics = vide. Glisse pour poser plein de ✕ d\'un coup.'
     ],
     create(root, api) {
-      const N = api.mode === 'libre' ? 6 + api.rng.int(3) : 7;
+      const N = pickSize(api, [7, 6, 8], [9, 8, 9]);
       const P = genCouronnes(api.rng, N);
       let st = new Array(N * N).fill(0), done = false;
       const hist = history(() => st, (s) => { st = s; render(); });
@@ -1205,12 +1256,12 @@ body.noanim .sn-cell { transition: none !important; }
     })(0);
     return n;
   }
-  function genBinaire(rng, N) {
+  function genBinaire(rng, N, nCons, extra) {
     const sol = binFull(rng, N);
     const edges = [];
     for (let i = 0; i < N * N; i++) { if (i % N < N - 1) edges.push([i, i + 1]); if (i + N < N * N) edges.push([i, i + N]); }
     rng.shuffle(edges);
-    const cons = edges.slice(0, 7 + rng.int(5)).map(([a, b]) => ({ a, b, t: sol[a] === sol[b] ? '=' : '×' }));
+    const cons = edges.slice(0, nCons == null ? 7 + rng.int(5) : nCons).map(([a, b]) => ({ a, b, t: sol[a] === sol[b] ? '=' : '×' }));
     const giv = sol.slice();
     for (const i of rng.shuffle([...Array(N * N).keys()])) {
       const keep = giv[i]; giv[i] = 0;
@@ -1218,7 +1269,7 @@ body.noanim .sn-cell { transition: none !important; }
     }
     // un peu de douceur : on rajoute 2 cases données
     const empt = rng.shuffle(giv.map((v, i) => (v ? -1 : i)).filter((i) => i >= 0));
-    empt.slice(0, 2).forEach((i) => (giv[i] = sol[i]));
+    empt.slice(0, extra == null ? 2 : extra).forEach((i) => (giv[i] = sol[i]));
     return { sol, giv, cons };
   }
 
@@ -1233,8 +1284,11 @@ body.noanim .sn-cell { transition: none !important; }
       '« = » : les deux cases sont identiques. « × » : elles sont différentes.'
     ],
     create(root, api) {
-      const N = 6;
-      const P = genBinaire(api.rng, N);
+      const t = levelT(api);
+      const N = api.hard ? 8 : (api.mode === 'level' && api.level > 40 ? 8 : 6);
+      const nCons = api.hard ? 6 + api.rng.int(4) : N === 8 ? 10 + api.rng.int(4) : 7 + api.rng.int(5);
+      const extra = api.hard ? 0 : N === 8 ? 4 : Math.round(3 - 3 * t);
+      const P = genBinaire(api.rng, N, nCons, extra);
       let st = P.giv.slice(), done = false;
       const hist = history(() => st, (s) => { st = s; render(); });
       const board = boardWrap(N, 'b-bin');
@@ -1331,9 +1385,9 @@ body.noanim .sn-cell { transition: none !important; }
       'Reviens en arrière en repassant sur ton trait, ou clique une case du chemin pour le couper.'
     ],
     create(root, api) {
-      const N = api.mode === 'libre' ? 6 + api.rng.int(2) : 6;
+      const N = pickSize(api, [6, 5, 7], [8, 7, 8]);
       const sol = hamPath(api.rng, N);
-      const K = N + 2;
+      const K = api.hard ? Math.max(4, N - 2) : N + 2;
       const idx = [0, N * N - 1];
       const mids = api.rng.shuffle([...Array(N * N - 2).keys()].map((k) => k + 1)).slice(0, K - 2);
       idx.push(...mids); idx.sort((a, b) => a - b);
@@ -1341,7 +1395,7 @@ body.noanim .sn-cell { transition: none !important; }
       idx.forEach((pi, k) => { num[sol[pi]] = k + 1; numCell[k + 1] = sol[pi]; });
       const used = new Set(); for (let k = 0; k < sol.length - 1; k++) used.add(ekey(sol[k], sol[k + 1]));
       const cand = []; for (let i = 0; i < N * N; i++) for (const j of nbrs(i, N)) if (i < j && !used.has(ekey(i, j))) cand.push([i, j]);
-      const walls = new Set(api.rng.shuffle(cand).slice(0, Math.floor(N / 2) + api.rng.int(3)).map(([a, b]) => ekey(a, b)));
+      const walls = new Set(api.rng.shuffle(cand).slice(0, Math.floor(N / 2) + api.rng.int(3) + (api.hard ? N : 0)).map(([a, b]) => ekey(a, b)));
 
       let path = [], done = false;
       const hist = history(() => path, (p) => { path = p; render(); });
@@ -1477,7 +1531,7 @@ body.noanim .sn-cell { transition: none !important; }
       '1 clic = barrer, 2 clics = entourer (« je garde »), 3 clics = neutre.'
     ],
     create(root, api) {
-      const N = api.mode === 'libre' ? 5 + api.rng.int(2) : 5;
+      const N = pickSize(api, [5, 4, 6], [7, 6, 7]);
       const P = genSomme(api.rng, N);
       let st = new Array(N * N).fill(0), done = false; // 0 neutre, 1 barré, 2 gardé
       const hist = history(() => st, (s) => { st = s; render(); });
@@ -1612,7 +1666,7 @@ body.noanim .sn-cell { transition: none !important; }
       'Une fois fini, le dessin se révèle en couleurs.'
     ],
     create(root, api) {
-      const N = api.mode === 'libre' ? api.rng.pick([8, 10]) : 8;
+      const N = pickSize(api, [8, 6, 10], [12, 10, 12]);
       const P = genPixels(api.rng, N);
       const pal = api.rng.pick(PIX_PALETTES);
       let st = new Array(N * N).fill(0), done = false, tool = 1; // 1 = colorier, 2 = croix
@@ -1755,7 +1809,143 @@ body.noanim .sn-cell { transition: none !important; }
     ['Nuages', ['nuage'], ['Cirrus', 'Stratus', 'Nimbus', 'Cumulus', 'Cumulonimbus']],
     ['Cartes à jouer', ['carte'], ['Valet', 'Dame', 'As', 'Roi', 'Joker']],
     ['Saisons', ['saison'], ['Été', 'Automne', 'Printemps', 'Hiver', 'Équinoxe']],
-    ['Raccourcis clavier', ['raccourci', 'clavier', 'ctrl', 'touche'], ['Ctrl+Z', 'Ctrl+C', 'Ctrl+V', 'Ctrl+S', 'Ctrl+A']]
+    ['Raccourcis clavier', ['raccourci', 'clavier', 'ctrl', 'touche'], ['Ctrl+Z', 'Ctrl+C', 'Ctrl+V', 'Ctrl+S', 'Ctrl+A']],
+    ['Instruments à vent', ['instrument', 'vent'], ['Hautbois', 'Basson', 'Clarinette', 'Saxophone', 'Flûte']],
+    ['Percussions', ['percussion', 'instrument'], ['Cajón', 'Timbale', 'Xylophone', 'Tambourin', 'Batterie']],
+    ['Pays d\'Amérique du Sud', ['pays', 'amerique'], ['Guyana', 'Uruguay', 'Pérou', 'Argentine', 'Brésil']],
+    ['Pays d\'Afrique', ['pays', 'afrique'], ['Bénin', 'Mali', 'Kenya', 'Maroc', 'Égypte']],
+    ['Pays d\'Asie', ['pays', 'asie'], ['Laos', 'Népal', 'Vietnam', 'Japon', 'Chine']],
+    ['Îles', ['ile', 'archipel'], ['Ré', 'Oléron', 'Malte', 'Corse', 'Sicile']],
+    ['Régions françaises', ['region'], ['Grand Est', 'Occitanie', 'Normandie', 'Bretagne', 'Hauts-de-France']],
+    ['Villes françaises', ['ville'], ['Tours', 'Nancy', 'Lille', 'Lyon', 'Marseille']],
+    ['Départements', ['departement'], ['Ain', 'Gers', 'Cantal', 'Var', 'Finistère']],
+    ['Montagnes', ['montagne', 'sommet', 'mont', 'massif'], ['Cervin', 'Aneto', 'Kilimandjaro', 'Everest', 'Mont Blanc']],
+    ['Mers et océans', ['ocean', 'mer'], ['Baltique', 'Caspienne', 'Méditerranée', 'Pacifique', 'Atlantique']],
+    ['Déserts', ['desert'], ['Gobi', 'Atacama', 'Kalahari', 'Namib', 'Sahara']],
+    ['Volcans', ['volcan'], ['Etna', 'Vésuve', 'Stromboli', 'Fuji', 'Piton de la Fournaise']],
+    ['Fruits exotiques', ['fruit', 'exotique'], ['Litchi', 'Mangue', 'Papaye', 'Ananas', 'Banane']],
+    ['Légumes racines', ['legume', 'racine'], ['Panais', 'Navet', 'Radis', 'Betterave', 'Carotte']],
+    ['Herbes aromatiques', ['herbe', 'aromate', 'aromatique'], ['Aneth', 'Estragon', 'Coriandre', 'Basilic', 'Persil']],
+    ['Céréales', ['cereale'], ['Épeautre', 'Sarrasin', 'Orge', 'Avoine', 'Blé']],
+    ['Fruits à coque', ['noix', 'fruit sec', 'fruit a coque', 'oleagineux'], ['Pécan', 'Macadamia', 'Pistache', 'Amande', 'Noisette']],
+    ['Champignons', ['champignon'], ['Girolle', 'Morille', 'Cèpe', 'Shiitake', 'Truffe']],
+    ['Cépages', ['cepage', 'raisin', 'vin'], ['Gamay', 'Syrah', 'Merlot', 'Chardonnay', 'Pinot noir']],
+    ['Boissons chaudes', ['boisson'], ['Maté', 'Rooibos', 'Chicorée', 'Chocolat chaud', 'Café']],
+    ['Plats italiens', ['italien', 'italie'], ['Ossobuco', 'Risotto', 'Lasagnes', 'Carbonara', 'Pizza']],
+    ['Cuisine japonaise', ['japon', 'japonais'], ['Tempura', 'Gyoza', 'Ramen', 'Maki', 'Sushi']],
+    ['Plats français', ['francais', 'france', 'terroir'], ['Cassoulet', 'Ratatouille', 'Pot-au-feu', 'Bœuf bourguignon', 'Blanquette']],
+    ['Sauces', ['sauce'], ['Béarnaise', 'Hollandaise', 'Pesto', 'Mayonnaise', 'Ketchup']],
+    ['Viennoiseries', ['viennoiserie', 'boulangerie'], ['Chausson', 'Brioche', 'Pain aux raisins', 'Pain au chocolat', 'Croissant']],
+    ['Confiseries', ['bonbon', 'confiserie', 'sucrerie'], ['Calisson', 'Guimauve', 'Nougat', 'Caramel', 'Sucette']],
+    ['Parfums de glace', ['glace', 'parfum', 'sorbet'], ['Stracciatella', 'Pistache', 'Fraise', 'Chocolat', 'Vanille']],
+    ['Modes de cuisson', ['cuisson', 'cuire', 'cuisine'], ['Braiser', 'Pocher', 'Rôtir', 'Griller', 'Bouillir']],
+    ['Félins', ['felin', 'chat'], ['Ocelot', 'Lynx', 'Guépard', 'Tigre', 'Lion']],
+    ['Reptiles', ['reptile'], ['Iguane', 'Varan', 'Caméléon', 'Crocodile', 'Serpent']],
+    ['Insectes', ['insecte'], ['Phasme', 'Coccinelle', 'Libellule', 'Fourmi', 'Abeille']],
+    ['Mammifères marins', ['marin', 'mammifere', 'cetace', 'mer'], ['Narval', 'Lamantin', 'Orque', 'Phoque', 'Dauphin']],
+    ['Animaux de la savane', ['savane', 'afrique'], ['Gnou', 'Hyène', 'Girafe', 'Zèbre', 'Éléphant']],
+    ['Rapaces', ['rapace'], ['Milan', 'Busard', 'Faucon', 'Hibou', 'Aigle']],
+    ['Animaux de la forêt', ['foret', 'bois'], ['Blaireau', 'Chevreuil', 'Sanglier', 'Écureuil', 'Cerf']],
+    ['Dinosaures', ['dinosaure', 'dino'], ['Ankylosaure', 'Diplodocus', 'Vélociraptor', 'Tricératops', 'Tyrannosaure']],
+    ['Bébés animaux', ['bebe', 'petit'], ['Faon', 'Poulain', 'Agneau', 'Chaton', 'Chiot']],
+    ['Cris d\'animaux', ['cri'], ['Barrir', 'Hennir', 'Bêler', 'Miauler', 'Aboyer']],
+    ['Races de chats', ['chat'], ['Chartreux', 'Sphynx', 'Maine coon', 'Siamois', 'Persan']],
+    ['Sports collectifs', ['sport', 'equipe', 'collectif'], ['Water-polo', 'Handball', 'Rugby', 'Basket', 'Football']],
+    ['Sports d\'hiver', ['hiver', 'ski', 'neige'], ['Biathlon', 'Luge', 'Curling', 'Snowboard', 'Ski de fond']],
+    ['Arts martiaux', ['art martial', 'combat', 'martial'], ['Aïkido', 'Capoeira', 'Karaté', 'Judo', 'Kung-fu']],
+    ['Postes au football', ['poste', 'football', 'foot'], ['Libéro', 'Ailier', 'Milieu', 'Défenseur', 'Gardien']],
+    ['Vocabulaire du tennis', ['tennis'], ['Lob', 'Revers', 'Ace', 'Service', 'Jeu décisif']],
+    ['Épreuves d\'athlétisme', ['athletisme', 'olympique', 'epreuve'], ['Javelot', 'Haies', 'Marathon', 'Saut en hauteur', '100 mètres']],
+    ['Genres de jeux vidéo', ['jeu video', 'genre', 'gaming'], ['Roguelike', 'Plateforme', 'RPG', 'FPS', 'Course']],
+    ['Styles de musique', ['musique', 'musical', 'genre'], ['Reggae', 'Funk', 'Jazz', 'Rap', 'Rock']],
+    ['Peintres', ['peintre', 'artiste', 'peinture'], ['Vermeer', 'Renoir', 'Monet', 'Van Gogh', 'Picasso']],
+    ['Compositeurs', ['compositeur', 'musicien', 'classique'], ['Satie', 'Debussy', 'Chopin', 'Beethoven', 'Mozart']],
+    ['Écrivains français', ['ecrivain', 'auteur', 'litterature'], ['Colette', 'Zola', 'Proust', 'Molière', 'Victor Hugo']],
+    ['Personnages de contes', ['conte', 'personnage'], ['Barbe Bleue', 'Petit Poucet', 'Cendrillon', 'Blanche-Neige', 'Chaperon rouge']],
+    ['Mythologie nordique', ['nordique', 'viking', 'scandinave'], ['Freyja', 'Baldr', 'Loki', 'Odin', 'Thor']],
+    ['Dieux égyptiens', ['egypte', 'egyptien'], ['Anubis', 'Horus', 'Osiris', 'Isis', 'Râ']],
+    ['Créatures fantastiques', ['creature', 'fantastique', 'mythique', 'monstre', 'legendaire'], ['Kraken', 'Griffon', 'Licorne', 'Dragon', 'Sirène']],
+    ['Rois de France', ['roi', 'monarque'], ['Clovis', 'Philippe Auguste', 'Henri IV', 'Charlemagne', 'Louis XIV']],
+    ['Métiers de la santé', ['sante', 'medical', 'soignant'], ['Kiné', 'Sage-femme', 'Infirmier', 'Pharmacien', 'Médecin']],
+    ['Métiers du bâtiment', ['batiment', 'chantier', 'btp'], ['Couvreur', 'Plombier', 'Maçon', 'Électricien', 'Carreleur']],
+    ['Outils', ['outil', 'bricolage'], ['Rabot', 'Pince', 'Scie', 'Tournevis', 'Marteau']],
+    ['Meubles', ['meuble', 'mobilier'], ['Commode', 'Buffet', 'Armoire', 'Canapé', 'Table']],
+    ['Pièces de la maison', ['piece', 'maison'], ['Cellier', 'Grenier', 'Salon', 'Cuisine', 'Chambre']],
+    ['Matériaux', ['materiau', 'matiere', 'construction'], ['Liège', 'Ardoise', 'Béton', 'Verre', 'Brique']],
+    ['Tissus', ['tissu', 'textile', 'etoffe'], ['Tweed', 'Velours', 'Lin', 'Soie', 'Coton']],
+    ['Chaussures', ['chaussure', 'soulier'], ['Mocassin', 'Espadrille', 'Botte', 'Sandale', 'Basket']],
+    ['Accessoires de mode', ['accessoire', 'mode'], ['Broche', 'Foulard', 'Ceinture', 'Lunettes', 'Montre']],
+    ['Nuances de bleu', ['bleu'], ['Cobalt', 'Azur', 'Turquoise', 'Marine', 'Ciel']],
+    ['Nuances de rouge', ['rouge'], ['Carmin', 'Grenat', 'Bordeaux', 'Cerise', 'Écarlate']],
+    ['Pierres précieuses', ['pierre', 'gemme', 'bijou', 'precieuse'], ['Topaze', 'Saphir', 'Rubis', 'Émeraude', 'Diamant']],
+    ['Métaux', ['metal', 'metallique'], ['Zinc', 'Cuivre', 'Plomb', 'Aluminium', 'Acier']],
+    ['Unités informatiques', ['informatique', 'octet', 'donnee', 'stockage'], ['Pixel', 'Bit', 'Octet', 'Mégaoctet', 'Gigaoctet']],
+    ['Langages de programmation', ['langage', 'programmation', 'code'], ['Rust', 'Ruby', 'Python', 'Java', 'JavaScript']],
+    ['Touches du clavier', ['touche', 'clavier'], ['Échap', 'Tab', 'Maj', 'Entrée', 'Espace']],
+    ['Formats de fichier', ['format', 'fichier', 'extension'], ['CSV', 'PNG', 'PDF', 'MP3', 'XLSX']],
+    ['Fonctions texte du tableur', ['fonction', 'formule', 'excel', 'tableur'], ['STXT', 'GAUCHE', 'DROITE', 'CONCAT', 'MAJUSCULE']],
+    ['Types de graphiques', ['graphique', 'diagramme', 'chart'], ['Radar', 'Nuage de points', 'Courbe', 'Histogramme', 'Camembert']],
+    ['Vocabulaire du tableur', ['tableur', 'excel', 'feuille de calcul', 'classeur'], ['Plage', 'Onglet', 'Ligne', 'Colonne', 'Cellule']],
+    ['Moyens de transport', ['transport', 'vehicule', 'deplacement'], ['Tramway', 'Péniche', 'Métro', 'Vélo', 'Voiture']],
+    ['Engins volants', ['aeronef', 'avion', 'aviation', 'volant', 'vol'], ['Planeur', 'Dirigeable', 'ULM', 'Hélicoptère', 'Montgolfière']],
+    ['Bateaux', ['bateau', 'navire', 'embarcation'], ['Goélette', 'Catamaran', 'Paquebot', 'Voilier', 'Kayak']],
+    ['Parties du vélo', ['velo', 'bicyclette'], ['Dérailleur', 'Moyeu', 'Guidon', 'Pédale', 'Selle']],
+    ['Parties d\'un arbre', ['arbre'], ['Aubier', 'Écorce', 'Racine', 'Branche', 'Feuille']],
+    ['Parties du corps', ['corps'], ['Coude', 'Genou', 'Épaule', 'Cheville', 'Nez']],
+    ['Muscles', ['muscle', 'musculation'], ['Deltoïde', 'Trapèze', 'Biceps', 'Abdos', 'Mollet']],
+    ['Dents', ['dent', 'dentaire'], ['Prémolaire', 'Canine', 'Incisive', 'Molaire', 'Sagesse']],
+    ['Petites maladies', ['maladie', 'malade', 'virus'], ['Varicelle', 'Angine', 'Rhume', 'Grippe', 'Gastro']],
+    ['Les sens', ['sen', 'sensation'], ['Proprioception', 'Odorat', 'Goût', 'Toucher', 'Vue']],
+    ['Émotions', ['emotion', 'sentiment', 'humeur'], ['Nostalgie', 'Colère', 'Peur', 'Tristesse', 'Joie']],
+    ['Fêtes et jours fériés', ['fete', 'ferie', 'jour ferie'], ['Ascension', 'Toussaint', 'Pâques', 'Noël', 'Nouvel an']],
+    ['Décorations de Noël', ['noel', 'decoration'], ['Guirlande', 'Boule', 'Étoile', 'Crèche', 'Sapin']],
+    ['Halloween', ['halloween'], ['Citrouille', 'Sorcière', 'Fantôme', 'Squelette', 'Bonbons ou sort']],
+    ['Ponctuation', ['ponctuation'], ['Tiret', 'Point-virgule', 'Guillemets', 'Virgule', 'Point']],
+    ['Temps de conjugaison', ['conjugaison', 'temp', 'grammaire'], ['Plus-que-parfait', 'Subjonctif', 'Imparfait', 'Futur', 'Présent']],
+    ['Natures de mots', ['grammaire', 'nature', 'mot'], ['Adverbe', 'Pronom', 'Adjectif', 'Verbe', 'Nom']],
+    ['Figures de style', ['figure', 'rhetorique', 'style'], ['Litote', 'Oxymore', 'Métaphore', 'Hyperbole', 'Comparaison']],
+    ['Opérations', ['operation', 'math', 'calcul', 'mathematique'], ['Modulo', 'Puissance', 'Division', 'Multiplication', 'Addition']],
+    ['Nombres premiers', ['premier'], ['23', '17', '11', '7', '2']],
+    ['Chiffres romains', ['romain'], ['MCM', 'XL', 'IX', 'IV', 'III']],
+    ['Lettres grecques', ['grec', 'grecque', 'alphabet'], ['Omicron', 'Lambda', 'Delta', 'Bêta', 'Alpha']],
+    ['Instruments de mesure', ['mesure', 'mesurer'], ['Anémomètre', 'Baromètre', 'Balance', 'Thermomètre', 'Règle']],
+    ['Objets célestes', ['astre', 'astronomie', 'espace', 'ciel', 'celeste'], ['Comète', 'Nébuleuse', 'Galaxie', 'Étoile', 'Lune']],
+    ['Constellations', ['constellation'], ['Cassiopée', 'Orion', 'Andromède', 'Petite Ourse', 'Grande Ourse']],
+    ['Phénomènes météo', ['meteo', 'climat', 'phenomene'], ['Grêle', 'Brouillard', 'Arc-en-ciel', 'Orage', 'Neige']],
+    ['Catastrophes naturelles', ['catastrophe', 'desastre'], ['Avalanche', 'Tsunami', 'Séisme', 'Ouragan', 'Inondation']],
+    ['Jeux de cartes', ['carte', 'jeu de carte'], ['Rami', 'Bridge', 'Poker', 'Bataille', 'Uno']],
+    ['Jeux de cour de récré', ['recre', 'recreation', 'cour', 'enfant'], ['Marelle', 'Osselets', 'Billes', 'Chat perché', 'Cache-cache']],
+    ['Jouets', ['jouet'], ['Toupie', 'Yoyo', 'Cerf-volant', 'Peluche', 'Poupée']],
+    ['Sciences', ['science', 'discipline'], ['Géologie', 'Botanique', 'Chimie', 'Physique', 'Biologie']],
+    ['Philosophes', ['philosophe', 'philosophie', 'penseur'], ['Spinoza', 'Kant', 'Descartes', 'Socrate', 'Platon']],
+    ['Merveilles du monde', ['merveille', 'monument', 'site'], ['Pétra', 'Machu Picchu', 'Colisée', 'Taj Mahal', 'Grande Muraille']],
+    ['Monuments de Paris', ['paris', 'monument'], ['Panthéon', 'Sacré-Cœur', 'Louvre', 'Arc de triomphe', 'Tour Eiffel']],
+    ['Châteaux de la Loire', ['chateau', 'loire'], ['Cheverny', 'Amboise', 'Blois', 'Chenonceau', 'Chambord']],
+    ['Grands fleuves du monde', ['fleuve', 'riviere'], ['Mékong', 'Danube', 'Mississippi', 'Amazone', 'Nil']],
+    ['Thés', ['the', 'infusion'], ['Oolong', 'Matcha', 'Earl Grey', 'Thé vert', 'Thé noir']],
+    ['Cafés', ['cafe', 'expresso'], ['Ristretto', 'Macchiato', 'Cappuccino', 'Latte', 'Allongé']],
+    ['Fromages italiens', ['fromage'], ['Taleggio', 'Pecorino', 'Gorgonzola', 'Parmesan', 'Mozzarella']],
+    ['Charcuterie', ['charcuterie'], ['Rillettes', 'Coppa', 'Chorizo', 'Saucisson', 'Jambon']],
+    ['Pains', ['pain', 'boulangerie'], ['Fougasse', 'Ciabatta', 'Bagel', 'Pain de mie', 'Baguette']],
+    ['Petit-déjeuner', ['petit dejeuner', 'matin', 'breakfast'], ['Muesli', 'Tartine', 'Céréales', 'Jus d\'orange', 'Croissant']],
+    ['Pique-nique', ['pique nique', 'piquenique', 'picnic'], ['Glacière', 'Nappe', 'Panier', 'Couverture', 'Sandwich']],
+    ['Camping', ['camping', 'camper', 'bivouac'], ['Duvet', 'Réchaud', 'Lampe frontale', 'Sardines', 'Tente']],
+    ['À la plage', ['plage', 'vacance', 'bord de mer'], ['Paréo', 'Tuba', 'Parasol', 'Serviette', 'Château de sable']],
+    ['Station de ski', ['ski', 'station', 'montagne'], ['Dameuse', 'Télésiège', 'Forfait', 'Piste', 'Après-ski']],
+    ['Fournitures scolaires', ['ecole', 'fourniture', 'scolaire', 'trousse'], ['Compas', 'Rapporteur', 'Équerre', 'Cahier', 'Gomme']],
+    ['Au bureau', ['bureau', 'fourniture'], ['Agrafeuse', 'Trombone', 'Surligneur', 'Classeur', 'Stylo']],
+    ['Couleurs des cartes', ['carte', 'couleur'], ['Trèfle', 'Pique', 'Carreau', 'Cœur', 'Atout']],
+    ['Plantes d\'intérieur', ['plante', 'interieur'], ['Pothos', 'Monstera', 'Ficus', 'Cactus', 'Orchidée']],
+    ['Arbres fruitiers', ['fruitier', 'verger'], ['Cognassier', 'Prunier', 'Cerisier', 'Poirier', 'Pommier']],
+    ['Super-pouvoirs', ['pouvoir', 'super', 'superpouvoir'], ['Télékinésie', 'Invisibilité', 'Téléportation', 'Super force', 'Voler']],
+    ['Héros grecs', ['heros', 'mythologie', 'grec'], ['Persée', 'Thésée', 'Achille', 'Ulysse', 'Hercule']],
+    ['Électroménager', ['electromenager', 'appareil', 'cuisine'], ['Mixeur', 'Grille-pain', 'Bouilloire', 'Micro-ondes', 'Four']],
+    ['Petits noms affectueux', ['surnom', 'affectueux', 'amour', 'mot doux'], ['Biquet', 'Loulou', 'Chouchou', 'Doudou', 'Chéri']],
+    ['Onomatopées', ['onomatopee', 'bruit', 'son'], ['Atchoum', 'Boum', 'Miaou', 'Plouf', 'Bip']],
+    ['Spécialités régionales', ['specialite', 'region', 'regional'], ['Kouign-amann', 'Aligot', 'Tartiflette', 'Choucroute', 'Bouillabaisse']],
+    ['Instruments électroniques', ['electronique', 'synthe', 'instrument'], ['Thérémine', 'Boîte à rythmes', 'Sampler', 'Synthétiseur', 'Platine']],
+    ['Jeux olympiques d\'été', ['olympique', 'jo', 'ete'], ['Pentathlon', 'Aviron', 'Escrime', 'Natation', 'Gymnastique']],
+    ['Mots de la cuisine pâtissière', ['patisserie', 'patissier'], ['Chiqueter', 'Abaisser', 'Fouetter', 'Tamiser', 'Monter en neige']]
   ];
   function norm(s) {
     return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/œ/g, 'oe').replace(/[^a-z0-9]+/g, ' ').trim()
@@ -1773,14 +1963,16 @@ body.noanim .sn-cell { transition: none !important; }
     rules: [
       'Les indices cachés affichent #N/A. Un indice est révélé au départ.',
       'Devine la catégorie qui relie tous les mots (ex. : « fromages »).',
-      'Chaque mauvaise réponse révèle l\'indice suivant. Tu as 5 essais.',
+      'Chaque mauvaise réponse révèle l\'indice suivant. Tu as 5 essais (3 en mode Difficile).',
       'Pas de stress : même sans trouver, la feuille compte comme jouée.'
     ],
     create(root, api) {
       let pick;
+      const MAXG = api.hard ? 3 : 5;
       if (api.mode === 'libre') pick = CATS[api.rng.int(CATS.length)];
+      else if (api.mode === 'level') pick = CATS[XL.makeRng('indices-niveaux-' + (api.hard ? 'h' : 'n')).shuffle([...CATS.keys()])[(api.level - 1) % CATS.length]];
       else {
-        const order = XL.makeRng('indices-ordre-v1').shuffle([...CATS.keys()]);
+        const order = XL.makeRng(api.hard ? 'indices-ordre-difficile' : 'indices-ordre-v1').shuffle([...CATS.keys()]);
         const day = Math.floor(Date.parse(api.day + 'T12:00:00Z') / 864e5);
         pick = CATS[order[day % CATS.length]];
       }
@@ -1808,7 +2000,7 @@ body.noanim .sn-cell { transition: none !important; }
         });
         gl.innerHTML = '';
         guesses.forEach((g) => gl.append(h('span', { class: 'chip ' + (g.ok ? 'ok' : 'ko') }, (g.ok ? '✓ ' : '✕ ') + g.t)));
-        api.formula(`=RECHERCHEV(?; Indices; ${shown}; FAUX)   essais : ${guesses.length} / 5`);
+        api.formula(`=RECHERCHEV(?; Indices; ${shown}; FAUX)   essais : ${guesses.length} / ${MAXG}`);
       }
       function finish(ok) {
         done = true; input.disabled = go.disabled = skip.disabled = true;
@@ -1818,7 +2010,7 @@ body.noanim .sn-cell { transition: none !important; }
       function wrong(t) {
         if (done) return;
         guesses.push({ t, ok: false }); api.sound('tick');
-        if (guesses.length >= 5) return finish(false);
+        if (guesses.length >= MAXG) return finish(false);
         shown = Math.min(5, shown + 1); render();
       }
       function submit() {
@@ -1829,7 +2021,7 @@ body.noanim .sn-cell { transition: none !important; }
       render();
       setTimeout(() => input.focus({ preventScroll: true }), 300);
       return {
-        info: () => '5 indices',
+        info: () => `${MAXG} indices`,
         undo() {},
         reset() {},
         hint() { if (done || shown >= 5) return false; shown++; render(); return true; },
@@ -2144,13 +2336,18 @@ body.noanim .sn-cell { transition: none !important; }
   /* =========================================================
      Jeux : sessions, chrono, indices, victoire
      ========================================================= */
-  function startGame(id, mode, silent) {
+  const NLEVELS = 60;
+  const levelKey = (n) => 'niv-' + n;
+  function levelsDone(id, p) { const out = new Set(); if (!p) return out; for (const r of XL.results.all()) if (r.p === p && r.g === id && /^niv-/.test(r.d)) out.add(+r.d.slice(4)); return out; }
+  function startGame(id, mode, silent, level) {
+    if (mode === 'level') level = Math.max(1, Math.min(NLEVELS, level || ((levelsDone(id, player).size ? Math.max(...levelsDone(id, player)) : 0) + 1)));
     const g = XLGames.byId(id); const el = sheetEls[id] || (sheetEls[id] = h('div', { class: 'sheet', 'data-sheet': id }));
     if (!el.isConnected) canvas.append(el);
     const old = sessions[id]; if (old && old.inst.destroy) old.inst.destroy();
     const day = XL.todayKey();
-    const seed = mode === 'daily' ? `${day}|${id}` : `${id}|libre|${Date.now()}|${Math.random()}`;
-    const S = { id, mode, day, seed, elapsed: 0, hints: 0, done: false, result: null, prior: mode === 'daily' && player ? XL.results.daily(player, id, day) : null };
+    const hard = XL.mode.hard();
+    const seed = mode === 'daily' ? `${day}|${id}` + (hard ? '|hard' : '') : mode === 'level' ? `${hard ? 'hard' : 'normal'}|${id}|niveau|${level}` : `${id}|libre|${Date.now()}|${Math.random()}`;
+    const S = { id, mode, day, seed, level, hard, elapsed: 0, hints: 0, done: false, result: null, prior: mode === 'daily' && player ? XL.results.daily(player, id, day) : null };
     sessions[id] = S;
     el.innerHTML = '';
     const title = h('div', { class: 's-title' }, h('div', { class: 'gicon', style: { background: g.color } }, g.icon), h('div', { class: 'big' }, h('b', null, g.name), ' ', h('span', { style: { fontSize: '15px', color: 'var(--muted)' } }, '=' + g.fn + '()')), h('span', { class: 'tag' }, g.mech));
@@ -2161,7 +2358,9 @@ body.noanim .sn-cell { transition: none !important; }
       h('button', { class: 'btn', onclick: () => cmd('hint') }, '💡 Indice'),
       g.id !== 'indices' ? h('button', { class: 'btn', onclick: () => cmd('undo') }, '↶ Annuler') : null,
       g.id !== 'indices' ? h('button', { class: 'btn', onclick: () => cmd('reset') }, '⌫ Effacer') : null,
-      mode === 'daily' ? h('button', { class: 'btn', onclick: () => startGame(id, 'libre') }, '🎲 Partie libre') : h('button', { class: 'btn', onclick: () => startGame(id, 'daily') }, '📅 Puzzle du jour'),
+      mode !== 'daily' ? h('button', { class: 'btn', onclick: () => startGame(id, 'daily') }, '📅 Puzzle du jour') : null,
+      h('button', { class: 'btn', onclick: () => levelsDialog(id) }, '🧩 Niveaux'),
+      mode !== 'libre' ? h('button', { class: 'btn', onclick: () => startGame(id, 'libre') }, '🎲 Aléatoire') : h('button', { class: 'btn', onclick: () => startGame(id, 'libre') }, '🎲 Une autre'),
       h('button', { class: 'btn', onclick: () => showRules(g) }, '? Règles'));
     const banner = h('div');
     const side = h('div', { class: 'play-side' });
@@ -2169,7 +2368,7 @@ body.noanim .sn-cell { transition: none !important; }
     S.el = el; S.sub = sub; S.side = side; S.banner = banner; S.card = card;
 
     const api = {
-      rng: XL.makeRng(seed), mode, day,
+      rng: XL.makeRng(seed), mode, day, hard, level: level || 0,
       win: (extra) => onWin(id, extra || {}),
       formula: (t) => { if (SHEETS[active] && SHEETS[active].id === id) setFx(t); S.lastFx = t; },
       sound
@@ -2177,20 +2376,25 @@ body.noanim .sn-cell { transition: none !important; }
     try { S.inst = g.create(boardHost, api); }
     catch (err) { console.error(err); boardHost.append(h('div', { class: 'banner libre' }, '#REF! Ce puzzle n\'a pas pu être généré. Essaie une partie libre.')); S.inst = { hint() {}, undo() {}, reset() {}, info: () => '' }; }
     renderSub(id); renderBanner(id); renderSide(id);
-    if (!silent) { calcMode('Génération'); sweep(); toast(mode === 'daily' ? `📅 Puzzle du jour : ${g.name}` : `🎲 Nouvelle partie libre : ${g.name}`); sizeCanvas(); updateStatus(); }
+    if (!silent) { calcMode('Génération'); sweep(); toast(mode === 'daily' ? `📅 Puzzle du jour : ${g.name}` : mode === 'level' ? `🧩 ${g.name} · niveau ${level}${hard ? ' (difficile)' : ''}` : `🎲 Nouvelle partie libre : ${g.name}`); sizeCanvas(); updateStatus(); }
     return S;
   }
   function renderSub(id) {
     const S = sessions[id]; const g = XLGames.byId(id);
     S.sub.innerHTML = '';
     S.sub.append(
-      S.mode === 'daily' ? `Puzzle du ${XL.prettyDate(S.day)}` : 'Partie libre (hors classement du jour)',
+      S.hard ? h('span', { class: 'hard-pill' }, 'DIFFICILE') : '', S.hard ? ' ' : '',
+      S.mode === 'daily' ? `Puzzle du ${XL.prettyDate(S.day)}` : S.mode === 'level' ? `Niveau ${S.level} / ${NLEVELS}` : 'Partie libre (hors classement du jour)',
       ` · ${S.inst.info ? S.inst.info() : ''} · ~${g.minutes} · joueur : `, h('b', null, player || '—'),
       S.done ? h('span', { class: 'tick' }, '  ✓ terminé') : '');
   }
   function renderBanner(id) {
     const S = sessions[id]; S.banner.innerHTML = '';
-    if (S.mode === 'libre') S.banner.append(h('div', { class: 'banner libre' }, '🎲 Partie libre : un puzzle unique, rien que pour toi. Elle compte dans tes points zen.'));
+    if (S.mode === 'level') {
+      const nd = levelsDone(S.id, player);
+      S.banner.append(h('div', { class: 'banner libre lvl-banner' }, `🧩 Niveau ${S.level} : la difficulté monte doucement du niveau 1 au ${NLEVELS}. `, h('b', null, `${nd.size}/${NLEVELS} réussis`), nd.has(S.level) ? ' · ✓ déjà réussi' : '',
+        h('span', { class: 'lvl-nav' }, S.level > 1 ? h('button', { class: 'btn', onclick: () => startGame(S.id, 'level', false, S.level - 1) }, '◀') : null, S.level < NLEVELS ? h('button', { class: 'btn', onclick: () => startGame(S.id, 'level', false, S.level + 1) }, '▶') : null)));
+    } else if (S.mode === 'libre') S.banner.append(h('div', { class: 'banner libre' }, '🎲 Partie libre : un puzzle unique, rien que pour toi. Elle compte dans tes points zen.'));
     else if (S.prior && !S.result) S.banner.append(h('div', { class: 'banner' }, `✓ Tu as déjà fini ce puzzle aujourd'hui en ${XL.fmtTime(S.prior.t)}. Rejoue-le pour le plaisir (ton premier résultat reste enregistré).`));
   }
   function scoreLabel(r) {
@@ -2257,7 +2461,7 @@ body.noanim .sn-cell { transition: none !important; }
     const S = sessions[id]; if (!S || S.done) return;
     S.done = true; const g = XLGames.byId(id);
     const t = Math.max(1, Math.round(S.elapsed));
-    const r = { p: player, g: id, d: S.mode === 'daily' ? S.day : 'libre', t, h: S.hints, s: extra.s };
+    const r = { p: player, g: id, d: S.mode === 'daily' ? S.day : S.mode === 'level' ? levelKey(S.level) : 'libre', t, h: S.hints, s: extra.s };
     let saved = false;
     if (player) saved = XL.results.add(r);
     S.result = r;
@@ -2274,7 +2478,7 @@ body.noanim .sn-cell { transition: none !important; }
     const others = S.mode === 'daily' ? XL.players.list().filter((p) => p !== player).map((p) => ({ p, r: XL.results.daily(p, g.id, day) })) : [];
     const body = h('div', null,
       h('div', { class: 'win-hero' }, h('div', { class: 'win-badge', style: { background: g.color } }, g.icon),
-        h('div', null, h('div', { class: 'muted' }, g.name + (S.mode === 'daily' ? ' · puzzle du jour' : ' · partie libre')), h('div', { class: 'win-time' }, XL.fmtTime(r.t)), h('div', null, scoreLabel(r)))),
+        h('div', null, h('div', { class: 'muted' }, g.name + (S.mode === 'daily' ? ' · puzzle du jour' : S.mode === 'level' ? ` · niveau ${S.level}` : ' · partie libre') + (S.hard ? ' · difficile' : '')), h('div', { class: 'win-time' }, XL.fmtTime(r.t)), h('div', null, scoreLabel(r)))),
       h('p', { class: 'win-msg' }, extra.msg || ZEN_MSGS[Math.floor(Math.random() * ZEN_MSGS.length)]),
       S.mode === 'daily' && !saved && S.prior ? h('p', { class: 'muted' }, `Ton résultat du jour (${XL.fmtTime(S.prior.t)}) reste celui enregistré.`) : null,
       others.length ? h('div', null, h('p', { class: 'muted' }, 'Les autres aujourd\'hui :'), h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
@@ -2283,11 +2487,13 @@ body.noanim .sn-cell { transition: none !important; }
     dialog('Feuille terminée ✓', body, [
       { label: '⧉ Partager', onClick: () => { copy(shareText(g, r)); toast('Résultat copié, colle-le à tes amis 📋'); return false; } },
       { label: 'Rester ici' },
+      S.mode === 'level' && S.level < NLEVELS ? { label: `Niveau ${S.level + 1} ▶`, primary: true, onClick: () => startGame(g.id, 'level', false, S.level + 1) } :
       next >= 0 ? { label: `Feuille suivante : ${SHEETS[next].name} ▶`, primary: true, onClick: () => go(next) } : { label: '🏆 Voir le classement', primary: true, onClick: () => go(SHEETS.length - 1) }
     ]);
   }
   function shareText(g, r) {
-    return `Détente.xlsx · ${g.name} ${r.d === 'libre' ? '(libre)' : XL.shortDate(r.d)} · ${XL.fmtTime(r.t)} · ${scoreLabel(r)} ✓`;
+    const when = r.d === 'libre' ? '(libre)' : /^niv-/.test(r.d) ? `niveau ${r.d.slice(4)}` : XL.shortDate(r.d);
+    return `Détente.xlsx${XL.mode.hard() ? ' (difficile)' : ''} · ${g.name} ${when} · ${XL.fmtTime(r.t)} · ${scoreLabel(r)} ✓`;
   }
   function nextTodo() {
     const day = XL.todayKey();
@@ -2297,6 +2503,40 @@ body.noanim .sn-cell { transition: none !important; }
     }
     return -1;
   }
+  /* ---------- Niveaux (mode libre) ---------- */
+  function levelsDialog(id) {
+    const g = XLGames.byId(id); const done = levelsDone(id, player);
+    const cur = sessions[id] && sessions[id].mode === 'level' ? sessions[id].level : 0;
+    const first = [...Array(NLEVELS)].findIndex((_, i) => !done.has(i + 1)) + 1;
+    const tiers = [['Échauffement', 1, 15], ['Classique', 16, 30], ['Costaud', 31, 45], ['Expert', 46, 60]];
+    const body = h('div', { class: 'lvl-dialog' },
+      h('p', { class: 'muted' }, `${done.size}/${NLEVELS} niveaux réussis${XL.mode.hard() ? ' en mode Difficile' : ''}. Chaque niveau est le même pour tout le monde ; la taille et la difficulté montent petit à petit.`),
+      h('div', { class: 'lvl-bar' }, h('i', { style: { width: (done.size / NLEVELS * 100) + '%', background: g.color } })),
+      ...tiers.map(([name, a, b]) => h('div', { class: 'lvl-tier' }, h('h5', null, name, h('span', null, ` ${a}–${b}`)),
+        h('div', { class: 'lvl-grid' }, ...Array.from({ length: b - a + 1 }, (_, k) => {
+          const n = a + k;
+          return h('button', { class: 'lvl' + (done.has(n) ? ' done' : '') + (n === cur ? ' cur' : '') + (n === first ? ' next' : ''), style: { '--gc': g.color }, title: `Niveau ${n}`, onclick: () => { closeLv(); startGame(id, 'level', false, n); } }, done.has(n) ? '✓' : String(n));
+        })))));
+    const closeLv = dialog(`🧩 ${g.name} · niveaux`, body, [{ label: 'Fermer' }, first > 0 ? { label: `Jouer le niveau ${first} ▶`, primary: true, onClick: () => startGame(id, 'level', false, first) } : { label: 'Tout est réussi 🎉', primary: true }], { wide: true });
+  }
+
+  /* ---------- Mode Normal / Difficile : deux classeurs séparés ---------- */
+  function applyModeUI() {
+    const hard = XL.mode.hard();
+    document.documentElement.classList.toggle('hard', hard);
+    $('#docname').textContent = hard ? 'Détente (difficile).xlsx' : 'Détente.xlsx';
+    $$('#mode-switch button').forEach((b) => b.classList.toggle('on', (b.dataset.cmd === 'mode-hard') === hard));
+  }
+  function setMode(m) {
+    if ((m === 'hard') === XL.mode.hard()) return;
+    XL.mode.set(m); applyModeUI();
+    for (const id in sessions) { if (sessions[id].inst.destroy) sessions[id].inst.destroy(); delete sessions[id]; if (sheetEls[id]) sheetEls[id].innerHTML = ''; }
+    if (snake.st) { snakePause(); snakeReset(); }
+    calcMode(m === 'hard' ? 'Passage en Difficile' : 'Retour en Normal');
+    toast(m === 'hard' ? '🌶 Mode Difficile : grilles plus grandes, résultats et classement séparés' : '🍃 Mode Normal : tes résultats habituels');
+    go(active < 0 ? 0 : active, { force: true }); refreshAll();
+  }
+
   const SYNC_LABEL = { local: '· Enregistré sur cet appareil', connecting: '· Connexion…', online: '· Synchronisé ☁', offline: '· Hors ligne (local)', readonly: '· Lecture seule ☁' };
   function syncLabel() { return SYNC_LABEL[XL.sync.state] || '· Enregistré'; }
   function flashSaved() { const s = $('#saved'); s.textContent = '· Enregistrement…'; setTimeout(() => (s.textContent = syncLabel()), 700); }
@@ -2363,8 +2603,10 @@ body.noanim .sn-cell { transition: none !important; }
     const { cols, rows } = snakeLayout();
     snake.zone.innerHTML = ''; snake.segs = []; snake.walls = []; snake.food = null; snake.msg = null;
     const y = Math.floor(rows / 2), x = Math.floor(cols / 3);
-    snake.st = { cols, rows, body: [{ x, y }, { x: x - 1, y }, { x: x - 2, y }], vals: [0, 0, 0], dir: { x: 1, y: 0 }, queue: [], score: 0, running: false, over: null, speed: 165, eaten: 0, msg: 'start', walls: [], foodId: 0, record: false };
-    snakeFood(); snakeDraw(); snakeStats(); updateStatus();
+    snake.st = { cols, rows, body: [{ x, y }, { x: x - 1, y }, { x: x - 2, y }], vals: [0, 0, 0], dir: { x: 1, y: 0 }, queue: [], score: 0, running: false, over: null, speed: XL.mode.hard() ? 125 : 165, eaten: 0, msg: 'start', walls: [], foodId: 0, record: false };
+    snakeFood();
+    if (XL.mode.hard()) for (let k = 0; k < 3; k++) snakeWall();
+    snakeDraw(); snakeStats(); updateStatus();
   }
   const occupied = (S, x, y) => S.body.some((b) => b.x === x && b.y === y) || S.walls.some((w) => w.x === x && w.y === y) || (S.food && S.food.x === x && S.food.y === y);
   function snakeFree(S, minDist) {
@@ -2378,7 +2620,7 @@ body.noanim .sn-cell { transition: none !important; }
     S.food = Object.assign(f, Math.random() < 0.12 ? { v: 10, gold: true } : { v: 1 + Math.floor(Math.random() * 9) }, { id: ++S.foodId });
   }
   function snakeWall() {
-    const S = snake.st; if (S.walls.length >= 10) return;
+    const S = snake.st; if (S.walls.length >= (XL.mode.hard() ? 18 : 10)) return;
     const w = snakeFree(S, 4); if (!w) return;
     S.walls.push(Object.assign(w, { label: Math.random() < 0.5 ? '#DIV/0!' : '#N/A', fresh: true }));
   }
@@ -2505,10 +2747,10 @@ body.noanim .sn-cell { transition: none !important; }
     if (eat) {
       const f = S.food;
       S.vals.splice(1, 0, f.v); S.score += f.v; S.eaten++;
-      S.speed = Math.max(80, S.speed - 3); sound(f.gold ? 'win' : 'place');
+      S.speed = Math.max(XL.mode.hard() ? 62 : 80, S.speed - 3); sound(f.gold ? 'win' : 'place');
       snakePlus(f.x, f.y, f.v, f.gold);
       snakeFood();
-      if (S.eaten % 4 === 0) snakeWall();
+      if (S.eaten % (XL.mode.hard() ? 3 : 4) === 0) snakeWall();
       snakeStats(); updateStatus();
     } else S.body.pop();
     snakeDraw();
@@ -2541,13 +2783,14 @@ body.noanim .sn-cell { transition: none !important; }
     const doneToday = player ? GAMES.filter((g) => XL.results.daily(player, g.id, day)).length : 0;
     const hello = new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir';
     el.append(
-      h('div', { class: 's-title' }, h('div', { class: 'big' }, `${hello} `, h('b', null, player || 'toi'), ' 👋'), h('span', { class: 'tag' }, XL.prettyDate(day))),
-      h('div', { class: 's-sub' }, 'Six petites feuilles de calcul à résoudre, sans pression. Les mêmes puzzles pour tout le monde aujourd\'hui. ', h('span', { class: 'home-who' }, `Pas ${player} ?`, h('button', { onclick: () => choosePlayer(false) }, 'Changer de joueur')))
+      h('div', { class: 's-title' }, h('div', { class: 'big' }, `${hello} `, h('b', null, player || 'toi'), ' 👋'), h('span', { class: 'tag' }, XL.prettyDate(day)), XL.mode.hard() ? h('span', { class: 'tag hard-tag' }, '🌶 Mode difficile') : null),
+      h('div', { class: 's-sub' }, XL.mode.hard() ? 'Mode Difficile : grilles plus grandes, moins d\'aides, et un classement à part. ' : '', 'Six petites feuilles de calcul à résoudre, sans pression. Les mêmes puzzles pour tout le monde aujourd\'hui. ', h('span', { class: 'home-who' }, `Pas ${player} ?`, h('button', { onclick: () => choosePlayer(false) }, 'Changer de joueur')))
     );
     el.append(h('div', { class: 'kpis' },
       kpi('Feuilles du jour', `${doneToday}`, ` / ${GAMES.length}`),
       kpi('Série en cours', st ? `${st.streak}` : '0', st && st.streak > 1 ? ' jours 🔥' : ' jour'),
       kpi('Points zen', st ? `${st.zen}` : '0', ''),
+      kpi('Niveaux réussis', st ? `${st.levels}` : '0', ` / ${GAMES.length * NLEVELS}`),
       kpi('Titre', '', st ? XL.titleFor(st.zen) : '—')
     ));
     const tbody = h('tbody');
@@ -2560,13 +2803,14 @@ body.noanim .sn-cell { transition: none !important; }
         h('td', null, g.minutes),
         h('td', { class: 'c' }, mine ? h('span', { class: 'pill done' }, '✓ ' + XL.fmtTime(mine.t)) : h('span', { class: 'pill todo' }, 'à faire')),
         h('td', null, ...oth.map(({ p, r }) => h('span', { class: 'who-mini', title: p }, h('span', { class: 'dot', style: { background: XL.players.color(p), opacity: r ? 1 : .35 } }, XL.players.initials(p)), r ? XL.fmtTime(r.t) : '…'))),
+        h('td', { class: 'c' }, h('button', { class: 'lvl-link', title: 'Choisir un niveau', onclick: (e) => { e.stopPropagation(); go(k + 1); setTimeout(() => levelsDialog(g.id), 350); } }, `🧩 ${levelsDone(g.id, player).size}/${NLEVELS}`)),
         h('td', { class: 'c' }, h('button', { class: 'go', onclick: (e) => { e.stopPropagation(); go(k + 1); } }, mine ? 'Revoir' : 'Jouer ▶')));
       tbody.append(tr);
     });
     const table = h('table', { class: 'xtable' },
-      h('thead', null, h('tr', null, ...['Feuille', 'Fonction', 'Durée', 'Toi', 'Les autres', ''].map((t, i) => h('th', { class: (i < 5 ? 'filter' : '') + (i === 3 || i === 5 ? ' c' : '') }, t)))),
+      h('thead', null, h('tr', null, ...['Feuille', 'Fonction', 'Durée', 'Toi', 'Les autres', 'Niveaux', ''].map((t, i) => h('th', { class: (i < 5 ? 'filter' : '') + (i === 3 || i >= 5 ? ' c' : '') }, t)))),
       tbody,
-      h('tfoot', null, h('tr', null, h('td', null, 'Total'), h('td', null, h('span', { class: 'fx-mono' }, '=NB.SI(Toi;"✓")')), h('td'), h('td', { class: 'c' }, `${doneToday} / ${GAMES.length}`), h('td', null, h('div', { class: 'databar' }, h('i', { style: { width: (doneToday / GAMES.length * 100) + '%' } }), h('span', null, Math.round(doneToday / GAMES.length * 100) + ' %'))), h('td'))));
+      h('tfoot', null, h('tr', null, h('td', null, 'Total'), h('td', null, h('span', { class: 'fx-mono' }, '=NB.SI(Toi;"✓")')), h('td'), h('td', { class: 'c' }, `${doneToday} / ${GAMES.length}`), h('td', null, h('div', { class: 'databar' }, h('i', { style: { width: (doneToday / GAMES.length * 100) + '%' } }), h('span', null, Math.round(doneToday / GAMES.length * 100) + ' %'))), h('td', { class: 'c' }, st ? `${st.levels}/${GAMES.length * NLEVELS}` : ''), h('td'))));
     // mini graphique 7 jours
     const days = Array.from({ length: 7 }, (_, k) => XL.addDays(day, k - 6));
     const counts = days.map((d) => player ? XL.results.forDay(d).filter((r) => r.p === player).length : 0);
@@ -2596,10 +2840,10 @@ body.noanim .sn-cell { transition: none !important; }
     const day = XL.todayKey(); const ps = XL.players.list();
     const stats = ps.map((p) => XL.statsFor(p, day)).sort((a, b) => b.zen - a.zen);
     const maxZen = Math.max(1, ...stats.map((s) => s.zen));
-    el.append(h('div', { class: 's-title' }, h('div', { class: 'gicon', style: { background: 'var(--accent)' } }, '🏆'), h('div', { class: 'big' }, h('b', null, 'Classement'), ' détente'), h('span', { class: 'tag' }, 'pour sourire, pas pour stresser')),
-      h('div', { class: 's-sub' }, 'Points zen : 10 par puzzle du jour, 5 par partie libre, +3 sans aide, +2 par jour de série.'));
+    el.append(h('div', { class: 's-title' }, h('div', { class: 'gicon', style: { background: 'var(--accent)' } }, '🏆'), h('div', { class: 'big' }, h('b', null, 'Classement'), XL.mode.hard() ? ' difficile 🌶' : ' détente'), h('span', { class: 'tag' }, 'pour sourire, pas pour stresser')),
+      h('div', { class: 's-sub' }, (XL.mode.hard() ? 'Classement du mode Difficile, totalement séparé du mode Normal. ' : '') + 'Points zen : 10 par puzzle du jour, 5 par niveau ou partie libre, +3 sans aide, +2 par jour de série.'));
     const t1 = h('table', { class: 'xtable' },
-      h('thead', null, h('tr', null, ...['#', 'Joueur', 'Puzzles du jour', 'Parties libres', 'Sans aide', 'Série', 'Temps moyen', 'Points zen', 'Titre'].map((t, i) => h('th', { class: 'filter' + (i >= 2 && i <= 6 ? ' num' : '') }, t)))),
+      h('thead', null, h('tr', null, ...['#', 'Joueur', 'Puzzles du jour', 'Niveaux + libres', 'Sans aide', 'Série', 'Temps moyen', 'Points zen', 'Titre'].map((t, i) => h('th', { class: 'filter' + (i >= 2 && i <= 6 ? ' num' : '') }, t)))),
       h('tbody', null, ...stats.map((s, k) => h('tr', { 'data-f': `=RANG(${s.zen}; Points zen)  → ${k + 1}` },
         h('td', { class: 'c' }, ['🥇', '🥈', '🥉'][k] || String(k + 1)),
         h('td', null, h('span', { class: 'who-mini' }, h('span', { class: 'dot', style: { background: XL.players.color(s.p) } }, XL.players.initials(s.p)), h('b', null, s.p), s.p === player ? ' (toi)' : '')),
@@ -2689,9 +2933,10 @@ body.noanim .sn-cell { transition: none !important; }
   }
   function doImport(text) {
     try {
-      const list = XL.share.decode(text); const n = XL.results.merge(list);
+      const list = XL.share.decode(text); const n = XL.results.merge(list, list.mode);
       const who = [...new Set(list.map((r) => r.p))].join(', ');
-      toast(n ? `✓ ${n} résultat${n > 1 ? 's' : ''} importé${n > 1 ? 's' : ''} (${who})` : 'Rien de nouveau : tout était déjà là.');
+      const where = list.mode === 'hard' ? ' en mode Difficile' : (XL.mode.hard() ? ' en mode Normal' : '');
+      toast(n ? `✓ ${n} résultat${n > 1 ? 's' : ''} importé${n > 1 ? 's' : ''}${where} (${who})` : 'Rien de nouveau : tout était déjà là.');
       flashSaved(); refreshAll(); return true;
     } catch (e) { toast('⚠ Code invalide. Vérifie le copier-coller.'); return false; }
   }
@@ -2760,6 +3005,10 @@ body.noanim .sn-cell { transition: none !important; }
       case 'gotoRank': go(SHEETS.length - 1); break;
       case 'gotoHome': go(0); break;
       case 'player': choosePlayer(false); break;
+      case 'mode-normal': setMode('normal'); break;
+      case 'mode-hard': setMode('hard'); break;
+      case 'mode-toggle': setMode(XL.mode.hard() ? 'normal' : 'hard'); break;
+      case 'levels': { const S = SHEETS[active]; if (S && S.game) levelsDialog(S.id); else toast('Ouvre un jeu pour voir ses niveaux'); break; }
       case 'addplayer': choosePlayer(false); setTimeout(() => { const i = $('.addrow input'); i && i.focus(); }, 80); break;
       case 'copycode': copy(XL.share.shortCode(player, XL.todayKey()) || XL.share.exportCode()).then((ok) => toast(ok ? 'Code de partage copié ⧉' : 'Copie impossible ici')); break;
       case 'sharelink': shareDialog(); break;
@@ -2914,7 +3163,7 @@ body.noanim .sn-cell { transition: none !important; }
   XL.sync.init();
 
   /* ---------- Démarrage ---------- */
-  applyPrefs();
+  applyPrefs(); applyModeUI();
   if (player) setPlayer(player);
   const hash = decodeURIComponent(location.hash.slice(1));
   let start = 0;
